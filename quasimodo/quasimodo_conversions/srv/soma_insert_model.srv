@@ -1,0 +1,3 @@
+quasimodo_msgs/model model # this contains frames, cloud, camera, transforms etc
+---
+soma_llsd_msgs/Segment segment

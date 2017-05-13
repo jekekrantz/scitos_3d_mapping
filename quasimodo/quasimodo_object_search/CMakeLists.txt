@@ -6,7 +6,7 @@ add_definitions(-std=c++11)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS quasimodo_msgs pcl_ros mongodb_store)
+find_package(catkin REQUIRED COMPONENTS quasimodo_msgs pcl_ros mongodb_store object_3d_benchmark dynamic_object_retrieval cereal eigen_conversions)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -16,6 +16,10 @@ find_package(PCL 1.6 REQUIRED COMPONENTS common io search visualization surface 
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
+
+find_package(OpenCV REQUIRED)
+find_package(Qt4 REQUIRED)
+include(${QT_USE_FILE})
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -129,6 +133,7 @@ include_directories(${catkin_INCLUDE_DIRS})
 
 ## Declare a C++ executable
 add_executable(visualize_database_node src/visualize_database_node.cpp)
+add_executable(image_database_node src/image_database_node.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
@@ -138,6 +143,12 @@ add_executable(visualize_database_node src/visualize_database_node.cpp)
 target_link_libraries(visualize_database_node
   ${PCL_LIBRARIES}
   ${catkin_LIBRARIES}
+)
+
+target_link_libraries(image_database_node
+  ${PCL_LIBRARIES}
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
 )
 
 #############

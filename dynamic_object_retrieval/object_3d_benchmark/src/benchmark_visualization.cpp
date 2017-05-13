@@ -357,4 +357,100 @@ pair<cv::Mat, vector<cv::Mat> > make_image(std::vector<CloudT::Ptr>& results, co
     return make_pair(visualization, individual_images);
 }
 
+pair<int, int> get_square_sizes_local(int i)
+{
+    int y = int(sqrt(float(i)));
+    int x = ceil(float(i) / float(y));
+
+    return make_pair(y, x);
+}
+
+pair<cv::Mat, vector<cv::Mat> > make_image(vector<SurfelCloudT::Ptr>& results,
+                                           const vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> >& first_transforms)
+{
+    pair<int, int> sizes = get_square_sizes_local(results.size());
+
+    int width = 200;
+    int height = 200;
+
+    cv::Mat visualization(height*sizes.first, width*sizes.second, CV_8UC3, cv::Scalar(255,255,255));
+    vector<cv::Mat> individual_images;
+
+    int counter = 0;
+    for (SurfelCloudT::Ptr& cloud : results) {
+
+        // OK, how do we render the object into the camera? maybe simply simulate a camera,
+        // then resize all of the images to have similar sizes? SOUNDS GOOD!
+
+        // how can we get the camera transform for the segments? would it be better to
+        // just check the main direction of the segment and estimate the transform based on that? YES
+
+        // so, with the camera matrix K and the estimated transform we just project the points
+        // manually into an opencv mat? Sounds reasonable
+
+        SurfelCloudT::Ptr centered_cloud(new SurfelCloudT);
+        pcl::transformPointCloud(*cloud, *centered_cloud, first_transforms[counter]);
+
+        Eigen::Vector4f point;
+        pcl::compute3DCentroid(*centered_cloud, point);
+
+        Eigen::Vector3f x, y, z;
+        z = point.head<3>();
+        z.normalize();
+        x = Eigen::Vector3f(0.0f, 1.0f, 0.0f).cross(z);
+        y = z.cross(x);
+
+        Eigen::Matrix4f T;
+        T.setIdentity();
+        T.block<1, 3>(0, 0) = x.transpose();
+        T.block<1, 3>(1, 0) = y.transpose();
+        T.block<1, 3>(2, 0) = z.transpose();
+
+        SurfelCloudT::Ptr transformed_cloud(new SurfelCloudT);
+        pcl::transformPointCloud(*centered_cloud, *transformed_cloud, T);
+        for (SurfelT& p : transformed_cloud->points) {
+            p.getVector3fMap() /= p.z;
+        }
+
+        // from this we should be able to compute a good focal length from the given widths
+        // probably easiest from a  min max?
+        SurfelT min_pt;
+        SurfelT max_pt;
+        pcl::getMinMax3D(*transformed_cloud, min_pt, max_pt);
+
+        float gap_x = std::fabs(max_pt.x - min_pt.x);
+        float gap_y = std::fabs(max_pt.y - min_pt.y);
+
+        float focal = std::min(float(width)/gap_x, float(height)/gap_y);
+
+        // allright, now all we need is something for computing the offset
+        // this should be possible directly from the focal and the min max points
+        // I guess just centralize in both directions
+
+        float offset_x = -focal*min_pt.x+0.5f*(float(width)-focal*gap_x);
+        float offset_y = -focal*min_pt.y+0.5f*(float(height)-focal*gap_y);
+
+        Eigen::Matrix3f K;
+        K << focal, 0.0f, offset_x, 0.0f, focal, offset_y, 0.0f, 0.0f, 1.0f;
+
+        cv::Mat sub_image = render_surfel_image(cloud, T*first_transforms[counter], K, height, width);
+
+        int offset_height = counter / sizes.second;
+        int offset_width = counter % sizes.second;
+        sub_image.copyTo(visualization(cv::Rect(offset_width*width, offset_height*height, width, height)));
+        individual_images.push_back(sub_image);
+
+        //cv::imshow("test", visualization);
+        //cv::waitKey();
+
+        ++counter;
+    }
+
+    if (visualization.rows == 0) {
+        visualization = cv::Mat::zeros(height*2, width*5, CV_8UC3);
+    }
+
+    return make_pair(visualization, individual_images);
+}
+
 } // namespace benchmark_retrieval

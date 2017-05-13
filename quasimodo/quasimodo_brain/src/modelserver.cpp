@@ -2,6 +2,8 @@
 #include "ModelStorage/ModelStorage.h"
 #include "Util/Util.h"
 
+#include <quasimodo_conversions/soma_insert_model.h>
+
 bool addToDB(ModelDatabase * database, reglib::Model * model, bool add);
 bool addIfPossible(ModelDatabase * database, reglib::Model * model, reglib::Model * model2);
 void addNewModel(reglib::Model * model);
@@ -474,6 +476,7 @@ int main(int argc, char **argv){
 
 	bool clearQDB = false;
 	bool reloadMongo = false;
+    bool addSoma = false;
 
 	int inputstate = -1;
 	for(int i = 1; i < argc;i++){
@@ -504,6 +507,7 @@ int main(int argc, char **argv){
 		else if(std::string(argv[i]).compare("-loadModelsPCDs") == 0){								inputstate = 13;}
 		else if(std::string(argv[i]).compare("-clearQDB") == 0){									clearQDB = true;}
 		else if(std::string(argv[i]).compare("-reloadMongo") == 0){									reloadMongo = true;}
+        else if(std::string(argv[i]).compare("-addSoma") == 0){									    addSoma = true;}
 		else if(inputstate == 1){
             reglib::Camera * cam = reglib::Camera::load(std::string(argv[i]));
 			delete cameras[0];
@@ -582,6 +586,24 @@ int main(int argc, char **argv){
 			ROS_ERROR("insert_client service CLEAR FAIL!");
 		}
 	}
+
+    if (addSoma) {
+        ros::ServiceClient insert_client = n.serviceClient<quasimodo_conversions::soma_insert_model>("/quasimodo_conversions/insert_soma_model");
+        quasimodo_conversions::soma_insert_model im;
+        for (std::map<std::string,std::string>::iterator it=storage->keyPathMap.begin(); it!=storage->keyPathMap.end(); ++it){
+            reglib::Model * model = storage->fetch(it->first);
+            im.request.model = quasimodo_brain::getModelMSG(model,true);
+            printf("starting to insert into soma_llsd database\n");
+            if (insert_client.call(im))
+            {
+                printf("successfully inserted soma_llsd model\n");
+            }
+            else{
+                ROS_ERROR("/quasimodo_conversions/insert_soma_model service INSERT FAIL!");
+            }
+            storage->fullHandback();
+        }
+    }
 
 	for(unsigned int i = 0; i < modelpcds.size(); i++){
 		std::vector<reglib::Model *> mods = quasimodo_brain::loadModelsPCDs(modelpcds[i]);
