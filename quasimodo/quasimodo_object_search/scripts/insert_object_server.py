@@ -24,8 +24,18 @@ from geometry_msgs.msg import Pose
 from std_msgs.msg import Empty
 import time
 import json
+import subprocess, signal
 
 pub = ()
+
+def kill_surfelize_it():
+    p = subprocess.Popen(['ps', '-A'], stdout=subprocess.PIPE)
+    out, err = p.communicate()
+
+    for line in out.splitlines():
+        if 'surfelize_serve' in line:
+            pid = int(line.split(None, 1)[0])
+            os.kill(pid, signal.SIGKILL)
 
 def insert_model_cb(sreq):
     msg_store = MessageStoreProxy(database='world_state', collection='quasimodo')
@@ -71,7 +81,8 @@ def insert_model_cb(sreq):
             surfelize_it_completed = True
         except rospy.ServiceException, e:
             print "Service call failed: %s"%e
-            rospy.sleep(0.1)
+            kill_surfelize_it()
+            rospy.sleep(10.0)
 
     new_obj = fused_world_state_object()
     new_obj.surfel_cloud = resp.processed_cloud
