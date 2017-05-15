@@ -185,6 +185,37 @@ double DistanceWeightFunction2::getPower(){
     return 2;
 }
 
+void DistanceWeightFunction2::saveSimple(double maxd, double mind, unsigned int steps, std::string path){
+    std::ofstream file (path,std::ofstream::binary);
+    if (file.is_open()){
+        unsigned long size = sizeof(unsigned long)+(2+2*steps)*sizeof(double);
+        char* buffer = new char[size];
+        double* buffer_double = (double *)buffer;
+        unsigned long * buffer_long = (unsigned long * )buffer;
+        unsigned long current = 0;
+        buffer_long[current++] = steps;
+        buffer_double[current++] = maxd;
+        buffer_double[current++] = mind;
+
+        double mul = (maxd-mind)/double(steps-1);
+
+        for(unsigned int i = 0; i < steps; i++){
+            double d = mind + mul*double(i);
+            buffer_double[current++] = getProb(d);
+        }
+
+        for(unsigned int i = 0; i < steps; i++){
+            double d = mind + mul*double(i);
+            buffer_double[current++] = getProbInfront(d);
+        }
+
+        file.write (buffer,size);
+        file.close();
+    }else{
+        printf("Unable to open file\n");
+    }
+}
+
 }
 
 

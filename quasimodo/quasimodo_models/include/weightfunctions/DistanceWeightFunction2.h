@@ -8,6 +8,9 @@
 //#include "inputframe.h"
 #include <Eigen/Dense>
 
+#include <iostream>
+#include <fstream>
+
 using namespace Eigen;
 namespace reglib
 {
@@ -18,7 +21,7 @@ enum Function {
     FAIR,
     LOGISTIC,
     TRIMMED,
-	THRESHOLD,
+    THRESHOLD,
     NONE
 };
 
@@ -72,6 +75,8 @@ public:
     virtual void print();
     virtual void setTune();
     virtual double getPower();
+    virtual void saveSimple(double maxd, double mind, unsigned int steps, std::string path);
+
 };
 
 }
@@ -81,4 +86,5 @@ public:
 #include "DistanceWeightFunction2PPR3.h"
 #include "DistanceWeightFunction2Tdist.h"
 #include "DistanceWeightFunction2JointDist.h"
+#include "DistanceWeightFunction2FILE.h"
 #endif // DistanceWeightFunction2_H

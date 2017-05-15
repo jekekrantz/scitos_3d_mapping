@@ -47,6 +47,11 @@ using namespace std;
 using namespace Eigen;
 using namespace cv;
 
+void aggregateProbs( DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * nfunc, std::vector<superpoint> & framesp1,
+        std::vector< std::vector<double> > & distances, std::vector< std::vector<superpoint> > & points,
+        double * overlaps, double * occlusions, double * notocclusions,
+        int debugg = 0);
+
 class UpdatedModels{
 public:
 	std::vector< Model * > new_models;

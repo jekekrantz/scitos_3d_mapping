@@ -29,6 +29,150 @@ using namespace std;
 namespace reglib
 {
 
+
+class ModelGrouping
+{
+    public:
+    double lowerbound;
+    double weight;
+    double relaxation;
+    int nr_clusters;
+    int added;
+    std::vector<int> clusters;
+    ModelGrouping(){
+        lowerbound = 1;
+        weight = 1;
+        relaxation = 1;
+        added = 0;
+        nr_clusters = 0;
+    }
+    void print(){
+        //printf("----------------\n");
+        printf("weight: %8.8f ",weight);
+        printf("relaxation: %8.8f ",relaxation);
+        printf("added: %i ",added);
+        printf("nr_clusters: %i ",nr_clusters);
+        printf("clusters = [");
+        for(unsigned int i = 0; i < added; i++){
+            printf("%i ",clusters[i]);
+        }
+        printf("];\n");
+    }
+
+    void add(std::vector<double> edges, int nrp, int cluster_id){
+        int matching = 0;
+        for(int i = 0; i < added; i++){
+            double e = edges[i*nrp+added];
+            if(clusters[i] == cluster_id){
+                weight += e;
+                matching++;
+            }
+        }
+        clusters.push_back(cluster_id);
+        if(matching == 0){nr_clusters++;}
+        added++;
+    }
+
+    void setRelaxation(std::vector<double> & R){
+        relaxation = R[added-1];
+        lowerbound = weight+relaxation;
+    }
+
+    double getWeight(){
+        return lowerbound;
+    }
+
+    friend bool operator> (const ModelGrouping &c1, const ModelGrouping &c2);
+    friend bool operator<= (const ModelGrouping &c1, const ModelGrouping &c2);
+    friend bool operator< (const ModelGrouping &c1, const ModelGrouping &c2);
+    friend bool operator>= (const ModelGrouping &c1, const ModelGrouping &c2);
+    friend bool operator== (const ModelGrouping &c1, const ModelGrouping &c2);
+};
+
+bool operator> ( const ModelGrouping &c1, const ModelGrouping &c2){return c1.lowerbound > c2.lowerbound;}
+bool operator>= (const ModelGrouping &c1, const ModelGrouping &c2){return c1.lowerbound >= c2.lowerbound;}
+bool operator<  (const ModelGrouping &c1, const ModelGrouping &c2){return c1.lowerbound < c2.lowerbound;}
+bool operator<= (const ModelGrouping &c1, const ModelGrouping &c2){return c1.lowerbound <= c2.lowerbound;}
+bool operator== (const ModelGrouping &c1, const ModelGrouping &c2){return c1.lowerbound == c2.lowerbound;}
+
+
+std::vector<int> getGroupings2(std::vector< std::vector<float> > edges_mat, int nrp, double limit = 0, int relaxation = 1, bool verbose = false){
+
+    std::vector< double > edges;
+    edges.resize(nrp*nrp);
+    for(unsigned int i = 0; i < nrp; i++){
+        for(unsigned int j = 0; j < nrp; j++){
+            edges[i*nrp +j] = edges_mat[i][j];
+        }
+    }
+
+    if(verbose){
+        for(unsigned int i = 0; i < nrp; i++){
+            for(unsigned int j = 0; j < nrp; j++){
+                printf("%3.3f ",edges[i*nrp +j]);
+            }
+            printf("\n");
+        }
+    }
+
+    std::vector<double> accumulated;
+    accumulated.resize(nrp);
+    for(unsigned int i = 0; i < nrp; i++){accumulated[i] = 1;}
+
+    if(relaxation != 0){
+        double prod = 0;
+        for(unsigned int i = nrp-1; i > 0; i--){
+            for(unsigned int j = 0; j < i; j++){
+                double e = edges[i*nrp+j];
+                prod += std::max(0.0,e);
+            }
+            accumulated[i-1] = prod;
+        }
+        accumulated.back() = 0;
+    }
+
+    if(verbose){
+        printf("relaxation: ");
+        for(unsigned int i = 0; i < nrp; i++){
+            printf("%5.5f ",accumulated[i]);
+        }
+        printf("\n");
+    }
+
+    std::priority_queue<ModelGrouping> queue;
+    queue.push(ModelGrouping());
+
+    std::vector<ModelGrouping> ret;
+
+    int groupings_done = 0;
+    double first = -1;
+    double sum = 0;
+    while (!queue.empty()){
+        ModelGrouping g = queue.top();
+        if(g.getWeight() < limit*first){break;}
+
+        queue.pop();
+        if(verbose && groupings_done % 1000 == 0){g.print();}
+        //printf("current: %20.20f\n",g.getWeight());
+
+        if(g.added < nrp){
+            for(int cluster_id = 0; cluster_id < g.nr_clusters+1; cluster_id++){
+                ModelGrouping g2 = g;
+                g2.add(edges,nrp,cluster_id);
+                g2.setRelaxation(accumulated);
+                queue.push(g2);
+                groupings_done++;
+            }
+        }else{
+            return g.clusters;
+        }
+    }
+
+    std::vector<int> clusters;
+    clusters.resize(nrp);
+    return clusters;
+}
+
 class Grouping
 {
 	public:
@@ -479,7 +623,13 @@ int setupPriors(int method,float current_occlusions, float current_overlaps, flo
 	return 0;
 }
 
-std::vector<int> ModelUpdater::getPartition(std::vector< std::vector< float > > & scores, int dims, int nr_todo, double timelimit){return partition_graph(scores);}
+std::vector<int> ModelUpdater::getPartition(std::vector< std::vector< float > > & scores, int dims, int nr_todo, double timelimit){
+    if(scores.size() < 10){
+        return getGroupings2(scores,scores.size());
+    }else{
+        return partition_graph(scores);
+    }
+}
 
 ModelUpdater::ModelUpdater(){
 	occlusion_penalty = 10;
@@ -3164,7 +3314,7 @@ void getScore2(DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * nfunc,
 void aggregateProbs( DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * nfunc, std::vector<superpoint> & framesp1,
 		std::vector< std::vector<double> > & distances, std::vector< std::vector<superpoint> > & points,
 		double * overlaps, double * occlusions, double * notocclusions,
-		int debugg = 0){
+        int debugg){
 
 	unsigned int nrp = distances.size();
 	#pragma omp parallel for
@@ -3203,32 +3353,6 @@ void aggregateProbs( DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * 
             }
         }
 
-//		std::vector<double> p_overlap_vec;
-//        current_overlaps.resize(dst_nrp);
-//        for(unsigned int i = 0; i < dst_nrp; i++){
-//            current_overlaps[dst_nrp*i+i] = 0;
-//            superpoint & p1 = dst_points[i];
-//            double p1_variance = 1.0/p1.point_information;
-//            double d1 = dst_distances[i];
-//            for(unsigned int j = i+1; j < dst_nrp; j++){
-//                superpoint & p2 = dst_points[j];
-//                double p2_variance = 1.0/p2.point_information;
-//				double total_variance = p1_variance+p2_variance;//+src_variance;
-//                double total_stdiv = sqrt(total_variance);
-
-//                double d2 = dst_distances[j];
-
-//                double d = (d1-d2)/total_stdiv;
-//                double surface_angle = p1.angle(p2);
-
-//                double p_overlap_angle = nfunc->getProb(1-surface_angle);
-//                double p_overlap = dfunc->getProb(d);
-//                p_overlap *= p_overlap_angle;
-//                current_overlaps[dst_nrp*i+j] = p_overlap;
-//                current_overlaps[dst_nrp*j+i] = p_overlap;
-//            }
-//        }
-
 		std::vector<double> p_overlap_vec;
 		p_overlap_vec.resize(dst_nrp);
 		std::vector<double> p_occlusion_vec;
@@ -3254,203 +3378,11 @@ void aggregateProbs( DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * 
             double olp = 0;
             double ocl = 0;
             for(unsigned int i = 0; i < grps.size(); i++){
-				//getScore(dfunc,nfunc,olp,ocl, grps[i],src_p,dst_points,dst_distances);
 				getScore2(dfunc,nfunc,olp,ocl, grps[i],p_overlap_vec,p_occlusion_vec);
             }
 			overlaps[src_ind] = olp;
 			occlusions[src_ind] = ocl;
 	   }
-
-/*
-		double p_overlap_agg = 1.0;
-		double p_occlusion_agg = 1.0;
-
-		for(unsigned int dst_ind = 0; dst_ind < dst_nrp; dst_ind++){
-			superpoint & dst_p = dst_points[dst_ind];
-			//double src_variance = 1.0/src_p.point_information;
-			double dst_variance = 1.0/dst_p.point_information;
-			double total_variance = src_variance+dst_variance;
-			double total_stdiv = sqrt(total_variance);
-			double d = dst_distances[dst_ind]/total_stdiv;
-			double surface_angle = dst_p.angle(src_p);
-			double p_overlap_angle = nfunc->getProb(1-surface_angle);
-			double p_overlap = dfunc->getProb(d);
-			double p_occlusion = dfunc->getProbInfront(d);
-			p_overlap *= p_overlap_angle;
-			p_overlap_agg   *= 1-p_overlap;
-			p_occlusion_agg *= 1-p_occlusion;
-		}
-
-		overlaps[src_ind] = p_overlap_agg;
-		occlusions[src_ind] = p_occlusion_agg;
-*/
-//		switch(dst_nrp) {
-//		case 0: {
-//			p_overlap_agg	= 0.0;
-//			p_occlusion_agg = 0.0;
-//		}break;
-//		case 1: {
-//			unsigned int dst_ind = 0;
-//			superpoint & dst_p		= dst_points[dst_ind];
-//			double src_variance		= 1.0/src_p.point_information;
-//			double dst_variance		= 1.0/dst_p.point_information;
-//			double total_variance	= src_variance+dst_variance;
-//			double total_stdiv		= sqrt(total_variance);
-//			double d				= dst_distances[dst_ind]/total_stdiv;
-//			double surface_angle	= dst_p.angle(src_p);
-//			double p_overlap_angle	= nfunc->getProb(1-surface_angle);
-//			double p_overlap		= dfunc->getProb(d);
-//			p_occlusion_agg			= dfunc->getProbInfront(d);
-//			p_overlap_agg			= p_overlap * p_overlap_angle;
-//		}break;
-//		case 2: {
-//			std::vector<int> clusters;
-//			clusters.resize(dst_nrp);
-
-////			double olp = 0;
-////			double ocl = 0;
-////			double sum = 0;
-
-////			clusters[0] = 0;
-////			clusters[1] = 0;
-////			getScore(dfunc,nfunc,olp,ocl,sum,clusters,1,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
-
-////			clusters[0] = 0;
-////			clusters[1] = 1;
-////			getScore(dfunc,nfunc,olp,ocl,sum,clusters,2,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
-
-
-
-////			printf("%i -> old: %10.10f new: %10.10f diff: %10.10f\n",src_ind,overlaps[src_ind],1-p_overlap_agg,overlaps[src_ind]-(1-p_overlap_agg));
-////			for(unsigned int i = 0; i < dst_nrp; i++){
-////				for(unsigned int j = 0; j < dst_nrp; j++){
-////					printf("%3.3f ",current_overlaps[dst_nrp*i+j]);
-////				}
-////				printf("\n");
-////			}
-//			exit(0);
-
-
-//		}break;
-//		case 3: {
-//			std::vector<int> clusters;
-//			clusters.resize(dst_nrp);
-
-//			double olp = 0;
-//			double ocl = 0;
-//			double sum = 0;
-
-//			clusters[0] = 0;
-//			clusters[1] = 0;
-//			clusters[2] = 0;
-//			getScore(dfunc,nfunc,olp,ocl,sum,clusters,1,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
-
-//			clusters[0] = 1;
-//			clusters[1] = 1;
-//			clusters[2] = 1;
-//			getScore(dfunc,nfunc,olp,ocl,sum,clusters,1,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
-
-//			clusters[0] = 1;
-//			clusters[1] = 0;
-//			clusters[2] = 0;
-//			getScore(dfunc,nfunc,olp,ocl,sum,clusters,2,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
-
-//			clusters[0] = 0;
-//			clusters[1] = 1;
-//			clusters[2] = 1;
-//			getScore(dfunc,nfunc,olp,ocl,sum,clusters,2,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
-
-//			clusters[0] = 0;
-//			clusters[1] = 1;
-//			clusters[2] = 0;
-//			getScore(dfunc,nfunc,olp,ocl,sum,clusters,2,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
-
-//			clusters[0] = 1;
-//			clusters[1] = 0;
-//			clusters[2] = 1;
-//			getScore(dfunc,nfunc,olp,ocl,sum,clusters,2,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
-
-//			clusters[0] = 0;
-//			clusters[1] = 0;
-//			clusters[2] = 1;
-//			getScore(dfunc,nfunc,olp,ocl,sum,clusters,2,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
-
-//			clusters[0] = 1;
-//			clusters[1] = 1;
-//			clusters[2] = 0;
-//			getScore(dfunc,nfunc,olp,ocl,sum,clusters,2,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
-
-//			clusters[0] = 0;
-//			clusters[1] = 1;
-//			clusters[2] = 2;
-//			getScore(dfunc,nfunc,olp,ocl,sum,clusters,3,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
-
-//			clusters[0] = 0;
-//			clusters[1] = 2;
-//			clusters[2] = 1;
-//			getScore(dfunc,nfunc,olp,ocl,sum,clusters,3,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
-
-//			clusters[0] = 1;
-//			clusters[1] = 0;
-//			clusters[2] = 2;
-//			getScore(dfunc,nfunc,olp,ocl,sum,clusters,3,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
-
-//			clusters[0] = 2;
-//			clusters[1] = 0;
-//			clusters[2] = 1;
-//			getScore(dfunc,nfunc,olp,ocl,sum,clusters,3,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
-
-//			clusters[0] = 2;
-//			clusters[1] = 1;
-//			clusters[2] = 0;
-//			getScore(dfunc,nfunc,olp,ocl,sum,clusters,3,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
-
-//			clusters[0] = 1;
-//			clusters[1] = 2;
-//			clusters[2] = 0;
-//			getScore(dfunc,nfunc,olp,ocl,sum,clusters,3,current_overlaps,dst_nrp,src_p,dst_points,dst_distances);
-
-//			printf("%i -> old: %10.10f new: %10.10f diff: %10.10f\n",src_ind,overlaps[src_ind],1-p_overlap_agg,overlaps[src_ind]-(1-p_overlap_agg));
-//			for(unsigned int i = 0; i < dst_nrp; i++){
-//				for(unsigned int j = 0; j < dst_nrp; j++){
-//					printf("%3.3f ",current_overlaps[dst_nrp*i+j]);
-//				}
-//				printf("\n");
-//			}
-//			exit(0);
-//		}break;
-
-//		default: {} break;
-//		}
-
-
-////		for(unsigned int dst_ind = 0; dst_ind < dst_nrp; dst_ind++){
-////			superpoint & dst_p = dst_points[dst_ind];
-////            double src_variance = 1.0/src_p.point_information;
-////			double dst_variance = 1.0/dst_p.point_information;
-////			double total_variance = src_variance+dst_variance;
-////			double total_stdiv = sqrt(total_variance);
-////            double d = dst_distances[dst_ind]/total_stdiv;
-////            double surface_angle = dst_p.angle(src_p);
-////            double p_overlap_angle = nfunc->getProb(1-surface_angle);
-////            double p_overlap = dfunc->getProb(d);
-////            double p_occlusion = dfunc->getProbInfront(d);
-////            p_overlap *= p_overlap_angle;
-////            p_overlap_agg   *= 1-p_overlap;
-////            p_occlusion_agg *= 1-p_occlusion;
-////		}
-
-//		if(show){
-//			//src_p.print();
-//			printf("%i -> old: %10.10f new: %10.10f diff: %10.10f\n",src_ind,overlaps[src_ind],1-p_overlap_agg,overlaps[src_ind]-(1-p_overlap_agg));
-//            for(unsigned int i = 0; i < dst_nrp; i++){
-//                for(unsigned int j = 0; j < dst_nrp; j++){
-//                    printf("%3.3f ",current_overlaps[dst_nrp*i+j]);
-//                }
-//                printf("\n");
-//            }
-//			if(dst_nrp >= 2){exit(0);}
-//        }
 	}
 }
 
@@ -3605,6 +3537,9 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 	if(savePath.size() != 0){
 		nfuncTMP->savePath = std::string(savePath)+"/segment_"+std::to_string(segment_run_counter)+"_nfunc.m";
 	}
+
+    dfunc->saveSimple(1.0,-1.0, 10000 , "./dfunc.bin");
+    nfunc->saveSimple(2.0, 0.0, 10000 , "./nfunc.bin");
 
 
 
@@ -5725,7 +5660,8 @@ std::vector<std::vector < float > > ModelUpdater::getScores(std::vector<std::vec
 	for(unsigned int i = 0; i < scores.size(); i++){
 		scores[i][i] = 0;
 		for(unsigned int j = i+1; j < scores.size(); j++){
-			scores[i][j] = occlusionScores[i][j].score+occlusionScores[j][i].score - occlusion_penalty*(occlusionScores[i][j].occlusions+occlusionScores[j][i].occlusions);
+            occlusionScores[i][j].print();
+            scores[i][j] = std::max(occlusionScores[i][j].score+occlusionScores[j][i].score - 0.0,0.0) - occlusion_penalty*(occlusionScores[i][j].occlusions+occlusionScores[j][i].occlusions);
 			scores[j][i] = scores[i][j];
 		}
 	}

@@ -128,6 +128,7 @@ bool testDynamicObjectServiceCallback(std::string path);
 bool dynamicObjectsServiceCallback(DynamicObjectsServiceRequest &req, DynamicObjectsServiceResponse &res);
 
 bool verifySweepOK(std::string path){
+    return true;
 
 	if (path.find("room.xml") != std::string::npos){
 	}else{
@@ -1878,6 +1879,7 @@ bool segmentRaresFiles(std::string path, bool resegment){
     printf("segoutput %i resegment %i\n",segoutput.size(),resegment);
 		if(resegment || segoutput.size() == 0){
 
+            printf("%i\n",__LINE__);
 			std::ofstream myfile;
 			myfile.open (sweep_folder+"segoutput.txt");
             myfile << "dummy";
