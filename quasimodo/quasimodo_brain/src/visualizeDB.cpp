@@ -209,18 +209,43 @@ int main(int argc, char **argv){
 //	viewer->addPointCloud<pcl::PointXYZRGB> (cld1, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB>(cld1), "model1");
 //	viewer->addPointCloud<pcl::PointXYZRGB> (cld2, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB>(cld2), "model2");
 
+	std::string filepath = "./";
 
-	ModelStorageFile * storage = new ModelStorageFile();
+	if(argc == 2){
+		filepath = std::string(argv[1]);
+	}
+
+	ModelStorageFile * storage = new ModelStorageFile(filepath);
 	storage->print();
 	storage->loadAllModels();
 	storage->print();
 
+	std::vector<int> dist;
+	dist.resize(100);
+	for(unsigned int i = 0; i < dist.size(); i++){dist[i] = 0;}
+
+
 	for (std::map<std::string,std::string>::iterator it=storage->keyPathMap.begin(); it!=storage->keyPathMap.end(); ++it){
+
+		reglib::Model * model = storage->fetch(it->first);
+		int subs = model->submodels.size();
+		if(model->frames.size() > 0){subs++;}
+		dist[subs]+=1;
+
+//		int nr_frames = 0;
+//		nr_frames += model->frames.size();
+//		for(unsigned int i = 0; i < model->submodels.size(); i++){
+//			nr_frames += model->submodels[i]->frames.size();
+//		}
+//		print("%i\n",nr_frames);
+		printf("%f %f\n",model->getScore(0),model->getScore(4));
+
 		viewer->removeAllPointClouds();
 		viewer->removeAllShapes();
-		reglib::Model * model = storage->fetch(it->first);
-
         if(model->submodels.size() > 1 && model->getScore(3) > 1000 && model->getScore(2) > 250 && model->getScore(1) > 1000){
+			for(unsigned int i = 0; i < model->submodels.size(); i++){
+				printf("key : %s\n",model->submodels[i]->keyval.c_str());
+			}
 			pcl::PointXYZ curr;
 			curr.x = 0;
 			curr.y = 0;
@@ -286,6 +311,10 @@ int main(int argc, char **argv){
 		}
 		storage->fullHandback();
 	}
+
+	printf("dist = [");
+	for(unsigned int i = 1; i < dist.size(); i++){printf("%i ",dist[i]);}
+	printf("];\n");
 
 	return 0;
 }

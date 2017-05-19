@@ -2,10 +2,6 @@
 #include <iostream>
 #include <fstream>
 
-//#include "registration/myhull.h"
-
-//#include <pcl/surface/convex_hull.h>
-
 namespace reglib
 {
 
@@ -26,19 +22,15 @@ RegistrationRefinement::RegistrationRefinement(){
 	visualizationLvl = 1;
 
 	target_points	= 250;
-	dst_points		= 2500;
+	dst_points		= 5000;
 	allow_regularization = true;
 	maxtime = 9999999;
 
     regularization = 0.1;
     convergence = 0.25;
-
-	//	func = new DistanceWeightFunction2PPR2();
-	//	func->startreg			= 0.1;
-	//	func->debugg_print		= false;
 }
+
 RegistrationRefinement::~RegistrationRefinement(){
-	//if(func != 0){delete func; func = 0;}
 	if(arraypoints != 0){delete arraypoints; arraypoints = 0;}
 	if(trees3d != 0){delete trees3d; trees3d = 0;}
 	if(a3d != 0){delete a3d; a3d = 0;}
@@ -53,7 +45,6 @@ void RegistrationRefinement::setDst(std::vector<superpoint> & dst_){
 	Y.resize(Eigen::NoChange,d_nr_data/stepy);
 	N.resize(Eigen::NoChange,d_nr_data/stepy);
 	ycols = Y.cols();
-
 
 	int count = 0;
 	for(unsigned int i = 0; i < d_nr_data/stepy; i++){
@@ -104,9 +95,6 @@ double initStart = getTime();
 	}
     func->debugg_print		= visualizationLvl > 3;
     func->minNoise              = 0.0005;
-
-
-
 
 	double stop		= 0.00001;
 
@@ -161,40 +149,7 @@ double initStart = getTime();
         Xn(2,i)	= m20*xn + m21*yn + m22*zn;
     }
 
-/*
-    unsigned int s_nr_data = src.size();//src->data.cols();
-    int stepx = std::max(1,int(s_nr_data)/target_points);
-	Eigen::Matrix<double, 3, Eigen::Dynamic> X;
-	Eigen::Matrix<double, 3, Eigen::Dynamic> Xn;
-	X.resize(Eigen::NoChange,s_nr_data/stepx);
-	Xn.resize(Eigen::NoChange,s_nr_data/stepx);
-	unsigned int xcols = X.cols();
-
-
-	/// Buffers
-	Eigen::Matrix3Xd Qp		= Eigen::Matrix3Xd::Zero(3,	xcols);
-	Eigen::Matrix3Xd Qn		= Eigen::Matrix3Xd::Zero(3,	xcols);
-	Eigen::VectorXd  W		= Eigen::VectorXd::Zero(	xcols);
-	Eigen::VectorXd  Wold	= Eigen::VectorXd::Zero(	xcols);
-	Eigen::VectorXd  rangeW	= Eigen::VectorXd::Zero(	xcols);
-
-	Eigen::VectorXd SRC_INORMATION = Eigen::VectorXd::Zero(xcols);
-	for(unsigned int i = 0; i < s_nr_data/stepx; i++){
-		SRC_INORMATION(i) = src[i*stepx].point_information;//src->information(0,i*stepx);
-		float x		= src[i*stepx].x;//src->data(0,i*stepx);
-		float y		= src[i*stepx].y;//src->data(1,i*stepx);
-		float z		= src[i*stepx].z;//src->data(2,i*stepx);
-		float xn	= src[i*stepx].nx;//src->normals(0,i*stepx);
-		float yn	= src[i*stepx].ny;//src->normals(1,i*stepx);
-		float zn	= src[i*stepx].nz;//src->normals(2,i*stepx);
-		X(0,i)	= m00*x + m01*y + m02*z + m03;
-		X(1,i)	= m10*x + m11*y + m12*z + m13;
-		X(2,i)	= m20*x + m21*y + m22*z + m23;
-		Xn(0,i)	= m00*xn + m01*yn + m02*zn;
-		Xn(1,i)	= m10*xn + m11*yn + m12*zn;
-		Xn(2,i)	= m20*xn + m21*yn + m22*zn;
-	}
-*/
+	Eigen::Matrix3Xd Xo0 = X;
 	Eigen::Matrix3Xd Xo1 = X;
 	Eigen::Matrix3Xd Xo2 = X;
 	Eigen::Matrix3Xd Xo3 = X;
@@ -208,34 +163,10 @@ double initStart = getTime();
 
     if(visualizationLvl >= 3){printf("before noise: %f\n",func->getNoise());show(X,Y,true);}
 
-	//	//printf("X: %i %i Y: %i %i\n",X.cols(), X.rows(),Y.cols(), Y.rows());
-	//double startTest = getTime();
-	//std::vector<size_t>				ret_indexes1(1);
-	//std::vector<double>				out_dists_sqr1(1);
-	//nanoflann::KNNResultSet<double>	resultSet1(1);
-	//resultSet1.init(&ret_indexes1[0], &out_dists_sqr1[0] );
-	//double qp1 [3];
-	//nanoflann::SearchParams sp1 = nanoflann::SearchParams(10);
+	int wasted = 0;
+	int total = 0;
 
-	//for(unsigned long it = 0; true; it++){
-	//	qp1[0] = 0.001*(rand()%1000);
-	//	qp1[1] = 0.001*(rand()%1000);
-	//	qp1[2] = 0.001*(rand()%1000);
-	//	trees3d->findNeighbors(resultSet1, qp1, sp1);
-	//	int mid = ret_indexes1[0];
-	//	if(it % 1000){
-	//		printf("mps: %15.15f\n",double(it)/(getTime()-startTest));
-	//	}
-	//}
-
-int wasted = 0;
-int total = 0;
-
-double last_stop1 = 1000000;
-double last_stop2 = 1000000;
-double last_stop3 = 1000000;
-
-addTime("init", getTime()-initStart);
+	addTime("init", getTime()-initStart);
 
 	double min_meaningfull_distance = 90000000000000000000000;
 
@@ -250,7 +181,7 @@ addTime("init", getTime()-initStart);
         double last_stop4 = 1000000;
         for(int rematching=0; rematching < 5; ++rematching) {
 			if( (getTime()-start) > maxtime ){timestopped = true; break;}
-            if(visualizationLvl >= 1){printf("func: %i rematch: %i\n",funcupdate,rematching);}
+			//if(visualizationLvl >= 1){printf("func: %i rematch: %i\n",funcupdate,rematching);}
 
             double matchStart = getTime();
             if(funcupdate==0 || rematching > 0){
@@ -283,7 +214,6 @@ addTime("init", getTime()-initStart);
             double last_stop3 = 1000000;
 			for(int outer=0; outer< 1; ++outer) {
 				if( (getTime()-start) > maxtime ){timestopped = true; break;}
-
 
 				double computeModelStart = getTime();
 
@@ -407,13 +337,6 @@ addTime("init", getTime()-initStart);
 							unsigned int s_nr_data = X.cols();
 							unsigned int d_nr_data = Y.cols();
 
-//                            for(unsigned int i = 0; i < s_nr_data; i++){
-//                                if(Wold2(i) < 0.5){
-//                                   printf("ID: %6.6i -> R:%5.5f -> W:%5.5f\n",i,residuals(i),Wold2(i));
-//                                }
-//                            }
-
-
 							viewer->removeAllPointClouds();
 							pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr scloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
 							pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr dcloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
@@ -443,11 +366,14 @@ addTime("init", getTime()-initStart);
 						}
 
                         stop = convergence*func->getNoise();
-                        score = Wold.sum();///(func->getNoise()*float(xcols));
 
+						double ratio = Wold.sum()/double(xcols);
+						if(ratio > 0.1){
+							score = ratio/(func->getNoise()*func->getNoise());
+						}else{
+							score = 0;
+						}
 						addTime("optimize", getTime()-optimizeStart);
-
-
 
 						double stop1 = (X-Xo1).colwise().norm().mean();
 						Xo1 = X;
@@ -460,53 +386,31 @@ addTime("init", getTime()-initStart);
 					double stop2 = (X-Xo2).colwise().norm().mean();
 					Xo2 = X;
 					if(stop2 < stop) break;
-
-//                    if(last_stop2 <= stop2*1.00001){break;}
-//                    last_stop2 = stop2;
 				}
 				double stop3 = (X-Xo3).colwise().norm().mean();
                 Xo3 = X;
 				if(stop3 < stop) break;
-
-//                if(last_stop3 <= stop3*1.00001){break;}
-//                last_stop3 = stop3;
 			}
 			double stop4 = (X-Xo4).colwise().norm().mean();
-            if(visualizationLvl >= 1){printf("stop4: %8.8f stop: %8.8f last_stop4: %8.8f\n",stop4,stop,last_stop4);}
+			//if(visualizationLvl >= 1){printf("stop4: %8.8f stop: %8.8f last_stop4: %8.8f\n",stop4,stop,last_stop4);}
             if(funcupdate==0 || rematching > 0){ Xo4 = X; }
             if(stop4 < stop) { break; } //if(visualizationLvl >= 1){printf("break from conv threshold\n"); }
 
 
             if(fabs(last_stop4-stop4) <= stop4*0.001){break;} last_stop4 = stop4;
-
-//            if(last_stop4 <= stop4*1.000001){
-//                if(visualizationLvl >= 1){printf("break from no change");}
-//                break;
-//            }
-//            last_stop4 = stop4;
 		}
-
-
-        //for(unsigned int i=0; i<xcols; i+=10) {printf("%4.4f ",residuals(0,i));} printf("\n");
-
 		double funcUpdateStart = getTime();
 		double noise_before = func->getNoise();
-        //func->debugg_print = true;
         func->update();
-        //func->debugg_print = false;
 		double noise_after = func->getNoise();
-        //printf("before: %f after: %f\n",noise_before,noise_after);
-
 		addTime("funcUpdate", getTime()-funcUpdateStart);
 		if(fabs(1.0 - noise_after/noise_before) < 0.01){break;}
 	}
-	//printf("------------\n");
 
 	double cleanupStart = getTime();
 
     if(visualizationLvl == 2 || visualizationLvl == 3){printf("after noise: %f\n",func->getNoise()); show(X,Y);}
 	if(visualizationLvl >= 4){
-		printf("visualizationLvl: %i\n",visualizationLvl);
 		unsigned int s_nr_data = X.cols();
 		unsigned int d_nr_data = Y.cols();
 		viewer->removeAllPointClouds();
@@ -525,12 +429,75 @@ addTime("init", getTime()-initStart);
 		viewer->removeAllPointClouds();
 	}
 
+	if(visualizationLvl == 1){
+		double ratio = Wold.sum()/double(xcols);
+		printf("noise: %f ratio: %f\n",func->getNoise(),ratio);
+
+		unsigned int s_nr_data = X.cols();
+		unsigned int d_nr_data = Y.cols();
+		viewer->removeAllPointClouds();
+
+		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr scloud2 (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr dcloud2 (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+		scloud2->points.clear();
+		dcloud2->points.clear();
+		for(unsigned int i = 0; i < s_nr_data; i++){pcl::PointXYZRGBNormal p;p.x = Xo0(0,i);p.y = Xo0(1,i);p.z = Xo0(2,i);p.b = 0;	p.g = 255; p.r = 0;	scloud2->points.push_back(p);}
+		for(unsigned int i = 0; i < d_nr_data; i++){pcl::PointXYZRGBNormal p;p.x = Y(0,i);p.y = Y(1,i);p.z = Y(2,i);p.b = 0;	p.g = 0;p.r = 255;	dcloud2->points.push_back(p);}
+		viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud2, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud2), "scloud2",2);
+		viewer->addPointCloud<pcl::PointXYZRGBNormal> (dcloud2, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(dcloud2), "dcloud2",2);
+		viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "scloud2");
+		viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "dcloud2");
+
+		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr scloud1 (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr dcloud1 (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+		scloud1->points.clear();
+		dcloud1->points.clear();
+		for(unsigned int i = 0; i < s_nr_data; i++){pcl::PointXYZRGBNormal p;p.x = X(0,i);p.y = X(1,i);p.z = X(2,i);p.b = 0;	p.g = 255; p.r = 0;	scloud1->points.push_back(p);}
+		for(unsigned int i = 0; i < d_nr_data; i++){pcl::PointXYZRGBNormal p;p.x = Y(0,i);p.y = Y(1,i);p.z = Y(2,i);p.b = 0;	p.g = 0;p.r = 255;	dcloud1->points.push_back(p);}
+		viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud1, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud1), "scloud1",1);
+		viewer->addPointCloud<pcl::PointXYZRGBNormal> (dcloud1, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(dcloud1), "dcloud1",1);
+		viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "scloud1");
+		viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "dcloud1");
+
+		viewer->spin();
+		viewer->removeAllPointClouds();
+	}
+
+	if(visualizationLvl == 1){
+		viewer->removeAllPointClouds();
+		unsigned int s_nr_data = X.cols();
+		unsigned int d_nr_data = Y.cols();
+
+		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr scloud2 (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr dcloud2 (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+		scloud2->points.clear();
+		dcloud2->points.clear();
+		for(unsigned int i = 0; i < s_nr_data; i++){pcl::PointXYZRGBNormal p;p.x = Xo0(0,i);p.y = Xo0(1,i);p.z = Xo0(2,i);p.b = 0;	p.g = 255; p.r = 0;	scloud2->points.push_back(p);}
+		for(unsigned int i = 0; i < d_nr_data; i++){pcl::PointXYZRGBNormal p;p.x = Y(0,i);p.y = Y(1,i);p.z = Y(2,i);p.b = 0;	p.g = 0;p.r = 255;	dcloud2->points.push_back(p);}
+		viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud2, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud2), "scloud2",2);
+		viewer->addPointCloud<pcl::PointXYZRGBNormal> (dcloud2, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(dcloud2), "dcloud2",2);
+		viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "scloud2");
+		viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "dcloud2");
+
+		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr scloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr dcloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+
+		scloud->points.clear();
+		dcloud->points.clear();
+		for(unsigned int i = 0; i < s_nr_data; i++){pcl::PointXYZRGBNormal p;p.x = X(0,i);p.y = X(1,i);p.z = X(2,i);p.b = 255.0*Wold(i);p.g = 255.0*Wold(i);p.r = 255.0*Wold(i);scloud->points.push_back(p);}
+		for(unsigned int i = 0; i < d_nr_data; i++){pcl::PointXYZRGBNormal p;p.x = Y(0,i);p.y = Y(1,i);p.z = Y(2,i);p.b = 0;			p.g = 0;			p.r = 255;			dcloud->points.push_back(p);}
+		viewer->addPointCloud<pcl::PointXYZRGBNormal> (scloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(scloud), "scloud",1);
+		viewer->addPointCloud<pcl::PointXYZRGBNormal> (dcloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(dcloud), "dcloud",1);
+		viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "scloud");
+		viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "dcloud");
+		viewer->spin();
+		viewer->removeAllPointClouds();
+	}
 
 	pcl::TransformationFromCorrespondences tfc;
 	tfc.reset();
 	for(unsigned int i = 0; i < xcols; i++){
-        //tfc.add(Eigen::Vector3f(src[i*stepx].x,	src[i*stepx].y,	src[i*stepx].z),Eigen::Vector3f (X(0,i),X(1,i),	X(2,i)));
-        tfc.add(Eigen::Vector3f(src[inds[i]].x,	src[inds[i]].y,	src[inds[i]].z),Eigen::Vector3f (X(0,i),X(1,i),	X(2,i)));
+		tfc.add(Eigen::Vector3f(src[inds[i]].x,	src[inds[i]].y,	src[inds[i]].z),Eigen::Vector3f (X(0,i),X(1,i),	X(2,i)));
 	}
 	guess = tfc.getTransformation().matrix().cast<double>();
 
@@ -541,10 +508,8 @@ addTime("init", getTime()-initStart);
 	fr.stop = stop;
 
 	addTime("cleanup", getTime()-cleanupStart);
-	//printf("ratio: %5.5f\n",double(wasted)/double(total));
 
 	return fr;
-
 }
 
 }

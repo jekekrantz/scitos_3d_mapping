@@ -584,7 +584,7 @@ int setupPriors(int method,float current_occlusions, float current_overlaps, flo
 
     if(method == 6 && valid){
 		float p_obj_given_occlusion = 0.9;
-		float p_obj_given_overlap   = 0.4;
+		float p_obj_given_overlap   = 0.3;
 		float p_obj_given_unknown   = 0.4999;
 
         float bg_p_O = bg_occlusions;

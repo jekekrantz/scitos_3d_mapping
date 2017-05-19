@@ -128,7 +128,7 @@ bool testDynamicObjectServiceCallback(std::string path);
 bool dynamicObjectsServiceCallback(DynamicObjectsServiceRequest &req, DynamicObjectsServiceResponse &res);
 
 bool verifySweepOK(std::string path){
-    return true;
+	return true;
 
 	if (path.find("room.xml") != std::string::npos){
 	}else{
@@ -136,16 +136,17 @@ bool verifySweepOK(std::string path){
 	}
 
 
-	if (path.find("201703") != std::string::npos){return false;}
+	//if (path.find("201703") != std::string::npos){return false;}
 
-	if (path.find("201704") != std::string::npos){return false;}
+	//if (path.find("201704") != std::string::npos){return false;}
 
-	return true;
+	//return true;
 
 	SimpleXMLParser<pcl::PointXYZRGB> parser;
 	SimpleXMLParser<pcl::PointXYZRGB>::RoomData other_roomData  = parser.loadRoomFromXML(path,std::vector<std::string>(),false,false);
 	std::string other_waypointid = other_roomData.roomWaypointId;
-	printf("waypoint: %s\n",other_waypointid.c_str());
+//	printf("waypoint: %s\n",other_waypointid.c_str());
+
 	if (other_waypointid.find("ReceptionKitchen") != std::string::npos){
 	//if (other_waypointid.find("Kitchen") != std::string::npos){
 		printf("OK: %s waypoint: %s\n",path.c_str(),other_waypointid.c_str());
@@ -1292,7 +1293,7 @@ std::vector<reglib::Model *> loadModels(std::string path){
 		file.open(QIODevice::ReadOnly);
 
 		reglib::Model * mod = new reglib::Model();
-		mod->keyval = roomLogName+"_object_"+std::to_string(objcounter);
+		mod->keyval = roomLogName+"_waypoint_"+roomData.roomWaypointId+"_object_"+std::to_string(objcounter);
 		//printf("Object: %s\n",mod->keyval.c_str()); //if(!quasimodo_brain::fileExists(std::string(buf))){break;}
 		QXmlStreamReader* xmlReader = new QXmlStreamReader(&file);
 
@@ -1329,6 +1330,10 @@ std::vector<reglib::Model *> loadModels(std::string path){
 		}
 		delete xmlReader;
 
+		for(unsigned int i = 0; i < mod->frames.size(); i++){
+			mod->frames[i]->keyval = roomLogName+"_waypoint_"+roomData.roomWaypointId+"_frame_"+std::to_string(i);
+		}
+
 		models.push_back(mod);
 	}
 
@@ -1344,7 +1349,7 @@ void addModelToModelServer(reglib::Model * model){
 }
 
 void sendMetaroomToServer(std::string path){
-	//printf("sendMetaroomToServer(%s)\n",path.c_str());
+	printf("sendMetaroomToServer(%s)\n",path.c_str());
 	if(!verifySweepOK(path)){return;}
 
 	quasimodo_brain::cleanPath(path);
@@ -1869,6 +1874,7 @@ bool segmentRaresFiles(std::string path, bool resegment){
 
 	for (auto sweep_xml : sweep_xmls) {
 		printf("sweep_xml: %s\n",sweep_xml.c_str());
+		verifySweepOK(sweep_xml);
 
 		quasimodo_brain::cleanPath(sweep_xml);
 		int slash_pos = sweep_xml.find_last_of("/");
@@ -2060,6 +2066,9 @@ int main(int argc, char** argv){
 
 	roomObservationCallback_pubs = n.advertise<sensor_msgs::PointCloud2>("/quasimodo/segmentation/roomObservation/dynamic_clusters", 1000);
 
+
+
+
 	printf("overall_folder: %s\n",overall_folder.c_str());
 	printf("testpaths: %i\n",testpaths.size());
 	for(unsigned int i = 0; i < testpaths.size(); i++){
@@ -2075,12 +2084,8 @@ int main(int argc, char** argv){
         printf("sendMetaroomToServers::%s\n",sendMetaroomToServers[i].c_str());
 		vector<string> sweep_xmls = semantic_map_load_utilties::getSweepXmls<PointType>(sendMetaroomToServers[i]);
 
-//		for (auto sweep_xml : sweep_xmls) {
-//			verifySweepOK(sweep_xml);
-//		}exit(0);
-
 		for (auto sweep_xml : sweep_xmls) {
-			//printf("sweep_xml: %s\n",sweep_xml.c_str());
+			printf("sweep_xml: %s\n",sweep_xml.c_str());
 			quasimodo_brain::cleanPath(sweep_xml);
 			int slash_pos = sweep_xml.find_last_of("/");
 			std::string sweep_folder = sweep_xml.substr(0, slash_pos) + "/";

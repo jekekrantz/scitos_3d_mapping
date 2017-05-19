@@ -132,6 +132,7 @@ public:
     void recomputeHistogram(float * hist, double * vec, unsigned int nr_data);
     virtual void recomputeHistogram(float * hist, MatrixXd & mat);
     virtual void recomputeProbs();
+	virtual void setRegularization(double r);
 
     void initComputeModel();
     void setInitialNoise(double stdval);

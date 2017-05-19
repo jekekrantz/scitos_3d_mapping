@@ -523,6 +523,12 @@ void DistanceWeightFunction2PPR3::computeModel(double * vec, unsigned int nr_dat
     if(debugg_print){printf("%%stdval:  %7.7f regularization: %7.7f\n",getNoise(),regularization);}
 }
 
+
+void DistanceWeightFunction2PPR3::setRegularization(double r){
+	regularization	= r;
+	startreg		= r;
+}
+
 void DistanceWeightFunction2PPR3::computeModel(MatrixXd mat){
 	const unsigned int nr_data = mat.cols();
 	const int nr_dim = mat.rows();
@@ -633,6 +639,10 @@ void DistanceWeightFunction2PPR3::computeModel(MatrixXd mat){
     dist->setRegularization(double(histogram_size)*regularization/(maxd-mind));
 
 	dist->update();
+	if(debugg_print){
+		printf("%% ");dist->print();
+		printf("%% regularization: %f noise: %f\n",regularization, getNoise());
+	}
 	if(debugg_print){printf("%%train time: %5.5fs\n",getTime()-start_time);dist->print();}
 
 	start_time = getTime();

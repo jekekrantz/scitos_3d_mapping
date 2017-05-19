@@ -93,6 +93,7 @@ namespace reglib{
         return getChange(change,meandist);
     }
 
+
 	pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr getPointCloudFromVector(std::vector<superpoint> & spvec, int colortype, int r, int g, int b){
 		unsigned long nr_points = spvec.size();
 		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_ptr (new pcl::PointCloud<pcl::PointXYZRGBNormal>);

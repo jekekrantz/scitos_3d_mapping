@@ -56,7 +56,8 @@ public:
 
 	MatrixXd getMat(std::vector<double> & vec);
 
-    virtual void setDebugg(bool debugg);
+	virtual void setDebugg(bool debugg);
+	virtual void setRegularization(double r);
     virtual void computeModel(std::vector<double> & vec);
     virtual void computeModel(double * vec, unsigned int nr_data, unsigned int dim = 1);
 	virtual void computeModel(MatrixXd mat);

@@ -2,6 +2,8 @@
 
 import roslib
 import rospy
+import os
+
 from sensor_msgs.msg import PointCloud2, PointField
 #from world_modeling.srv import *
 from cv_bridge import CvBridge, CvBridgeError

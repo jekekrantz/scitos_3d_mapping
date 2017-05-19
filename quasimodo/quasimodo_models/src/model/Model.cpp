@@ -1624,37 +1624,29 @@ void Model::getRepFrame(RGBDFrame * & frame, ModelMask * & modelmask, std::strin
 }
 
 double Model::getScore(int type){
+	double sum = 0;
+	for(unsigned int i = 0; i < submodels.size(); i++){sum += submodels[i]->getScore(type);}
+
 	if(type == 0){
-		double sum = 0;
-		for(unsigned int i = 0; i < submodels.size(); i++){sum += submodels[i]->getScore(type);}
 		sum += frames.size();
-		return sum;
 	}else if(type == 1){
-		double sum = 0;
-		for(unsigned int i = 0; i < submodels.size(); i++){sum += submodels[i]->getScore(type);}
 		if(frames.size() != 0){sum += points.size();}
-		return sum;
 	}else if(type == 2){
-		double sum = 0;
-		for(unsigned int i = 0; i < submodels.size(); i++){sum += submodels[i]->getScore(type);}
 		if(frames.size() != 0){
 			for(unsigned int j = 0; j < points.size(); j++){
 				sum += points[j].point_information;
 			}
 		}
-		return sum;
 	}else if(type == 3){
-		double sum = 0;
-		for(unsigned int i = 0; i < submodels.size(); i++){sum += submodels[i]->getScore(type);}
 		if(frames.size() != 0){
 			for(unsigned int j = 0; j < points.size(); j++){
 				sum += sqrt(points[j].point_information);
 			}
 		}
-		return sum;
 	}else{
-		return submodels.size();
+		sum += submodels.size();
 	}
+	return sum;
 }
 
 

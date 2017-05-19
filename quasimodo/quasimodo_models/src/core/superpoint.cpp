@@ -3,6 +3,13 @@
 namespace reglib
 {
 
+//pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr superpoint::getCloud(){}
+
+//pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr	cloud	(new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+//cloud->width	= width;
+//cloud->height	= height;
+//cloud->points.resize(width*height);
+
 
 double mysign(double v){
 	if(v < 0){return -1;}

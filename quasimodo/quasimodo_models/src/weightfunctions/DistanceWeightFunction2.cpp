@@ -19,6 +19,8 @@ void DistanceWeightFunction2::setDebugg(bool debugg){
     debugg_print = debugg;
 }
 
+void DistanceWeightFunction2::setRegularization(double r){regularization = r;}
+
 MatrixXd DistanceWeightFunction2::getMat(std::vector<double> & vec){
 	unsigned long nr_data = vec.size();
 	Eigen::VectorXd v (nr_data);

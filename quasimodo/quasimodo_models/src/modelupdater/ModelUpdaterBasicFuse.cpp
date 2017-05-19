@@ -37,17 +37,35 @@ FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix
 
 	if(model->points.size() > 0 && model2->points.size() > 0){
 		registration->viewer	= viewer;
-		registration->setDst(model->points);
-		registration->setSrc(model2->points);
 
-//        for(unsigned int i = 0; i < 2000; i++){
-//			FusionResults fr1 = registration->getTransform(guess);
-//			printf("%i :: score :: %f\n",i,fr1.scores.front());
+		std::vector<reglib::superpoint> model1_points = model->points;
+		std::vector<reglib::superpoint> model2_points = model2->points;
+
+//		Eigen::Affine3d startrot = Eigen::Affine3d::Identity();
+//		startrot = Eigen::AngleAxisd(-30*2*M_PI/360.0, Eigen::Vector3d::UnitX());
+
+//		for(unsigned long i = 0; i < model1_points.size(); i++){
+//			model1_points[i].transform(startrot.matrix());
 //		}
-//		exit(0);
-		FusionResults fr = registration->getTransform(guess);
-//		delete cd1;
-//		delete cd2;
+
+//		for(unsigned long i = 0; i < model2_points.size(); i++){
+//			model2_points[i].transform(startrot.matrix());
+//		}
+
+		FusionResults fr;
+		if(model->points.size() > model2->points.size() ){
+			registration->setDst(model1_points);
+			registration->setSrc(model2_points);
+			fr = registration->getTransform(guess);
+		}else{
+			registration->setDst(model2_points);
+			registration->setSrc(model1_points);
+			fr = registration->getTransform(guess.inverse());
+			for(unsigned int ca = 0; ca < fr.candidates.size(); ca++){
+				fr.candidates[ca] = fr.candidates[ca].inverse();
+			}
+		}
+
 
         double best = -99999999999999;
         int best_id = -1;
@@ -64,7 +82,7 @@ FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix
 		step = std::max(1,step);
 
 		for(unsigned int ca = 0; ca < todo && ca < 5; ca++){
-			printf("ca: %i / %i \n",ca+1,todo);
+			printf("ca: %i / %i -> %f \n",ca+1,todo,fr.scores[ca]);
 			Eigen::Matrix4d pose = fr.candidates[ca];
 
 			vector<Model *> models;
@@ -101,20 +119,22 @@ FusionResults ModelUpdaterBasicFuse::registerModel(Model * model2, Eigen::Matrix
 //			ocs[1][0].print();
 ////			computeOcclusionScore(models,rps,step,true);
 
+
 //			if(improvement > 0){
 //				//printf("improvement: %10.10f ",improvement*0.001);
 //				//ocs[1][0].print();
 //				//computeOcclusionScore(models,rps,step,true);
 //			}
-
-			printf("improvement: %10.10f ",improvement*0.001);
-			ocs[1][0].print();
-			for(unsigned int i = 0; i < scores.size(); i++){
-				for(unsigned int j = 0; j < scores.size(); j++){
-					if(scores[i][j] >= 0){printf(" ");}
-					printf("%5.5f ",0.00001*scores[i][j]);
+			if(show_scoring){
+				printf("improvement: %10.10f ",improvement*0.001);
+				ocs[1][0].print();
+				for(unsigned int i = 0; i < scores.size(); i++){
+					for(unsigned int j = 0; j < scores.size(); j++){
+						if(scores[i][j] >= 0){printf(" ");}
+						printf("%5.5f ",0.00001*scores[i][j]);
+					}
+					printf("\n");
 				}
-				printf("\n");
 			}
 			printf("partition "); for(unsigned int i = 0; i < partition.size(); i++){printf("%i ", partition[i]);} printf("\n");
 

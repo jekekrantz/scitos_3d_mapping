@@ -15,7 +15,7 @@ RegistrationRandom::RegistrationRandom(unsigned int steps){
 
 	steprx		= stepry	= steprz	= steps;
 	start_rx	= start_ry	= start_rz	= 0;
-    stop_rx		= stop_ry	= stop_rz	= 2.0 * M_PI * double(steps)/double(steps+1);
+	stop_rx		= stop_ry	= stop_rz	= 2.0 * M_PI;// * double(steps)/double(steps+1);
 
 	steptx		= stepty	= steptz	= 1;
 	start_tx	= start_ty	= start_tz	= 0;
@@ -148,12 +148,22 @@ Eigen::Affine3d RegistrationRandom::getMean(std::vector<superpoint> & data, int 
 	double mean_x = 0;
 	double mean_y = 0;
 	double mean_z = 0;
+	if(type == 3){
+		for(unsigned int i = 0; i < nr_data; i++){
+			mean_x += data[i].x;
+			//mean_y += data[i].y;
+			mean_z += data[i].z;
+		}
+		mean_x /= double(nr_data);
+		mean_y /= double(nr_data);
+		mean_z /= double(nr_data);
+	}
 
 	if(type == 0 || type == 2){
 		for(unsigned int i = 0; i < nr_data; i++){
-			mean_x += data[i].x;//data->data(0,i);
-			mean_y += data[i].y;//data->data(1,i);
-			mean_z += data[i].z;//data->data(2,i);
+			mean_x += data[i].x;
+			mean_y += data[i].y;
+			mean_z += data[i].z;
 		}
 		mean_x /= double(nr_data);
 		mean_y /= double(nr_data);
@@ -214,12 +224,12 @@ double startTime = getTime();
 				for(double tx = 0; tx < steptx; tx++){
 					for(double ty = 0; ty < stepty; ty++){
 						for(double tz = 0; tz < steptz; tz++){
-							rxs.push_back(start_rx + rx*(stop_rx-start_rx));
-							rys.push_back(start_ry + ry*(stop_ry-start_ry));
-							rzs.push_back(start_rz + rz*(stop_rz-start_rz));
-							txs.push_back(start_tx + tx*(stop_tx-start_tx));
-							tys.push_back(start_ty + ty*(stop_ty-start_ty));
-							tzs.push_back(start_tz + tz*(stop_tz-start_tz));
+							rxs.push_back(start_rx + rx*(stop_rx-start_rx)/double(steprx+1));
+							rys.push_back(start_ry + ry*(stop_ry-start_ry)/double(stepry+1));
+							rzs.push_back(start_rz + rz*(stop_rz-start_rz)/double(steprz+1));
+							txs.push_back(start_tx + tx*(stop_tx-start_tx)/double(steptx+1));
+							tys.push_back(start_ty + ty*(stop_ty-start_ty)/double(stepty+1));
+							tzs.push_back(start_tz + tz*(stop_tz-start_tz)/double(steptz+1));
 						}
 					}
 				}
@@ -230,6 +240,7 @@ double startTime = getTime();
 	unsigned int nr_r = steprx*stepry*steprz*steptx*stepty*steptz;
 
 //	printf("R: %i %i %i T: %i %i %i -> %i\n",steprx,stepry,steprz,steptx,stepty,steptz,nr_r);
+//	printf("R [%f %f %f]\n",start_rx,start_ry,start_rz);
 //	exit(0);
 
     refinement->allow_regularization = true;
@@ -239,14 +250,16 @@ double startTime = getTime();
 
 	Eigen::Affine3d Xmean = getMean(src,src_meantype);
 	Eigen::Affine3d Ymean = getMean(dst,dst_meantype);
+	//Ymean = Eigen::AngleAxisd(-30*2*M_PI/360.0, Eigen::Vector3d::UnitX()) * Ymean;
+	//Xmean = Eigen::AngleAxisd(-30*2*M_PI/360.0, Eigen::Vector3d::UnitX()) * Xmean;
 
 	double sumtime = 0;
 	double sumtimeSum = 0;
 	double sumtimeOK = 0;
 
     refinement->viewer = viewer;
-    refinement->visualizationLvl = 0;
-    refinement->target_points = 750;
+	refinement->visualizationLvl = 0;
+	refinement->target_points = 1000;
     int stepxsmall = std::max(1,int(s_nr_data)/refinement->target_points);
 
 //    refinement2->viewer = viewer;
@@ -256,13 +269,12 @@ double startTime = getTime();
 	std::vector<FusionResults> fr_X;
 	fr_X.resize(nr_r);
 
-    refinement->visualizationLvl = visualizationLvl;
+	//refinement->visualizationLvl = visualizationLvl;
 	//refinement2->visualizationLvl = visualizationLvl;
     //#pragma omp parallel for num_threads(8) schedule(dynamic)
     double e1 = 0;
 	//double e2 = 0;
 	for(unsigned int r = 0; r < nr_r; r++){
-	   // printf("r: %i / %i\n",r+1,nr_r);
 		double start = getTime();
 
 		double meantime = 999999999999;
@@ -272,22 +284,17 @@ double startTime = getTime();
             refinement->maxtime = 99999;
         }
 
-//        refinement2->maxtime = 50000.0;
-//        if(refinement2->visualizationLvl > 0){
-//            refinement2->maxtime = 99999;
-//        }
-
 		Eigen::Affine3d randomrot = Eigen::Affine3d::Identity();
 		randomrot =	Eigen::AngleAxisd(rxs[r], Eigen::Vector3d::UnitX()) *
-				Eigen::AngleAxisd(rys[r], Eigen::Vector3d::UnitY()) *
-				Eigen::AngleAxisd(rzs[r], Eigen::Vector3d::UnitZ());
+					Eigen::AngleAxisd(rys[r], Eigen::Vector3d::UnitY()) *
+					Eigen::AngleAxisd(rzs[r], Eigen::Vector3d::UnitZ());
 
-		Eigen::Affine3d current_guess = Ymean*randomrot*Xmean.inverse();//*Ymean;
-//for(unsigned int test = 0; test < 1; test++){
-    //printf("TEST: %i\n",test);
-        //double startR1 = getTime();
+		Eigen::Affine3d current_guess =  Ymean*randomrot*Xmean.inverse();
+
         FusionResults fr = refinement->getTransform(current_guess.matrix());
-        {
+
+		printf("r: %i / %i -> R[%5.5f %5.5f %5.5f] T[%5.5f %5.5f %5.5f] -> %f\n",r+1,nr_r,rxs[r],rys[r],rzs[r],txs[r],tys[r],tzs[r],fr.score);
+
         Eigen::Matrix4d change = fr.guess;
         double change_t = 0;
         double change_r = 0;
@@ -300,38 +307,8 @@ double startTime = getTime();
         }
         change_t = sqrt(change_t);
         e1 += change_t + 2*change_r;
-        }
 
-//        //double startR2 = getTime();
-//        FusionResults fr2 = refinement2->getTransform(current_guess.matrix());
-//        {
-//        Eigen::Matrix4d change = fr2.guess;
-//        double change_t = 0;
-//        double change_r = 0;
-//        for(unsigned long k = 0; k < 3; k++){
-//            change_t += change(k,3)*change(k,3);
-//            for(unsigned long l = 0; l < 3; l++){
-//                if(k == l){ change_r += fabs(1-change(k,l));}
-//                else{		change_r += fabs(change(k,l));}
-//            }
-//        }
-//        change_t = sqrt(change_t);
-//        e2 += change_t + 2*change_r;
-//}
-        //double startR3 = getTime();
-
-        //refinement2->printDebuggTimes();
-
-//        printf("Time old: %5.5fs Time new: %5.5fs\n",startR2-startR1,startR3-startR2);
-//        std::cout << "Result old\n" << fr.guess << std::endl << std::endl;
-//        std::cout << "Result new\n" << fr2.guess << std::endl << std::endl;
-//	}
-//        refinement->printDebuggTimes();
-//        refinement2->printDebuggTimes();
-//        printf("e1: %f e2: %f\n",e1,e2);
-//        exit(0);
-
-#pragma omp critical
+		#pragma omp critical
 		{
 			fr_X[r] = fr;
 
@@ -344,6 +321,7 @@ double startTime = getTime();
 
 		}
 	}
+	refinement->visualizationLvl = 0;
 	printf("meantime: %f\n",sumtimeSum/double(sumtimeOK+1.0));
 
 //	printf("%s::%5.5fs\n",__PRETTY_FUNCTION__,getTime()-startTime);
@@ -395,7 +373,7 @@ double startTime = getTime();
 		refinement->visualizationLvl = visualizationLvl;
 		refinement->target_points = 1000000;
 		refinement->maxtime = 10000;
-		for(unsigned int ax = 0; ax < fr_X.size() && ax < 5; ax++){
+		for(unsigned int ax = 0; ax < fr_X.size() && ax < 10; ax++){
 			printf("%i -> %f\n",ax,fr_X[ax].score);
 			std::cout << fr_X[ax].guess << std::endl << std::endl;
 			refinement->getTransform(fr_X[ax].guess);
