@@ -11,6 +11,9 @@ namespace reglib
     class RegistrationOptimization
     {
         public:
+		double overlap;
+		double info;
+
         Eigen::Matrix<double, 6, 1> ATb;
         Eigen::Matrix<double, 6, 6> ATA;
 
@@ -31,6 +34,16 @@ namespace reglib
 			return score;
 		}
     };
+
+	class InternalFusionResults
+	{
+		public:
+		RegistrationOptimization ro;
+		FusionResults fr;
+		InternalFusionResults(FusionResults fr_){
+			fr = fr_;
+		}
+	};
 
 	class RegistrationRandom2 : public Registration
 	{
@@ -87,7 +100,8 @@ namespace reglib
 
 
 		virtual double getMeanDist(std::vector<superpoint> & data);
-		virtual void deMean(std::vector<superpoint> & data);
+		virtual void deMean(std::vector<superpoint> & Tsrc);
+
 
 		virtual void setSrc(std::vector<superpoint> & src_);
 		virtual void setDst(std::vector<superpoint> & dst_);
@@ -99,13 +113,17 @@ namespace reglib
 
 		std::vector<reglib::superpoint> getMatches(const std::vector<reglib::superpoint> & X, const std::vector<reglib::superpoint> & Y, Tree3d * Y_tree);
 
+		void pruneDuplicates(std::vector<InternalFusionResults> & fr_X, double threshold, double rotationWeight);
+
 		double getStdDivVec(const std::vector<double> & V);
 		std::vector<double> getStdDiv(std::vector<reglib::superpoint> & A, std::vector<reglib::superpoint> & Q);
 		void getResiduals(std::vector<double> & residuals_d, std::vector<double> & residuals_a, std::vector<double> & standard_div, std::vector<reglib::superpoint> & A, std::vector<reglib::superpoint> & Q);
 		std::vector<superpoint> getRandom(std::vector<superpoint> points);
 
-		FusionResults refine(FusionResults guess, unsigned int nrp = 1000);
+		InternalFusionResults refine(InternalFusionResults guess, unsigned int nrp = 1000, bool regularize = true);
 		FusionResults getTransform(Eigen::MatrixXd guess);
+
+		Eigen::Matrix4d getTransform(std::vector<superpoint> & X, std::vector<superpoint> & Y);
 
 
 		void show(std::vector<reglib::superpoint> & X1, std::vector<reglib::superpoint> & Y1,std::vector<reglib::superpoint> & X2, std::vector<reglib::superpoint> & Y2 );

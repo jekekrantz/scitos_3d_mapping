@@ -682,7 +682,7 @@ bool ModelUpdater::isRefinementNeeded(){
 
 OcclusionScore ModelUpdater::computeOcclusionScore(vector<superpoint> & spvec, Matrix4d cp, RGBDFrame* cf, ModelMask* cm, int step,  bool debugg){
 	OcclusionScore oc;
-
+printf("%s :: %i\n",__PRETTY_FUNCTION__,__LINE__);
 	unsigned char  * dst_maskdata		= (unsigned char	*)(cm->mask.data);
 	unsigned char  * dst_rgbdata		= (unsigned char	*)(cf->rgb.data);
 	unsigned short * dst_depthdata		= (unsigned short	*)(cf->depth.data);

@@ -55,6 +55,8 @@ RegistrationRandom2::RegistrationRandom2(unsigned int steps){
 		dfuncTMP->bidir					= false;
 		dfuncTMP->zeromean				= true;
 		dfuncTMP->maxp					= 0.9999;
+		dfuncTMP->reg_shrinkage			= 0.9;
+		dfuncTMP->min_histogram_size	= 10;
 ////		dfuncTMP->maxd					= 1.0;//dstdval*10;
 ////		dfuncTMP->histogram_size		= 1000;
 ////		dfuncTMP->fixed_histogram_size	= false;
@@ -90,6 +92,7 @@ RegistrationRandom2::RegistrationRandom2(unsigned int steps){
 		nfuncTMP->startmaxd				= nfuncTMP->maxd;
 		nfuncTMP->starthistogram_size	= nfuncTMP->histogram_size;
 		nfuncTMP->blurval				= 2.0;
+		nfuncTMP->reg_shrinkage			= 0.5;
 
 
 //		nfuncTMP->startreg				= 0.05;
@@ -119,6 +122,16 @@ RegistrationRandom2::~RegistrationRandom2(){
 	if(dst_arraypoints != 0){delete dst_arraypoints; dst_arraypoints = 0;}
 	if(dst_trees3d != 0){delete dst_trees3d; dst_trees3d = 0;}
 	if(dst_a3d != 0){delete dst_a3d; dst_a3d = 0;}
+}
+
+Eigen::Matrix4d RegistrationRandom2::getTransform(std::vector<superpoint> & X, std::vector<superpoint> & Y){
+	pcl::TransformationFromCorrespondences tfc;
+	tfc.reset();
+	for(unsigned int i = 0; i < X.size(); i++){
+		tfc.add(Eigen::Vector3f(X[i].x,	X[i].y,	X[i].z),Eigen::Vector3f (Eigen::Vector3f(Y[i].x,Y[i].y,	Y[i].z)));
+	}
+	return tfc.getTransformation().matrix().cast<double>();
+
 }
 
 void RegistrationRandom2::setSrc(std::vector<superpoint> & src_){
@@ -186,7 +199,7 @@ double transformationdiff(Eigen::Matrix4d A, Eigen::Matrix4d B, double rotationw
 	return r*rotationweight+t;
 }
 
-bool compareFusionResults (FusionResults i,FusionResults j) { return i.score > j.score; }
+bool compareFusionResults (InternalFusionResults i,InternalFusionResults j) { return i.fr.score > j.fr.score; }
 
 std::vector<superpoint> RegistrationRandom2::getRandom(std::vector<superpoint> points){
 	unsigned int nr = points.size();
@@ -247,7 +260,7 @@ void RegistrationRandom2::deMean(std::vector<superpoint> & data){
 	}
 }
 
-void pruneDuplicates(std::vector<FusionResults> & fr_X, double threshold, double rotationWeight){
+void RegistrationRandom2::pruneDuplicates(std::vector<InternalFusionResults> & fr_X, double threshold, double rotationWeight){
 	unsigned int nr = fr_X.size();
 	std::vector<bool> to_delete;
 	to_delete.resize(nr);
@@ -259,13 +272,22 @@ void pruneDuplicates(std::vector<FusionResults> & fr_X, double threshold, double
 		if(!to_delete[i]){
 			for(unsigned int j = i+1; j < nr; j++){
 				if(!to_delete[j]){
-					to_delete[j] = transformationdiff(fr_X[i].guess,fr_X[j].guess,rotationWeight) < threshold;
+					to_delete[j] = transformationdiff(fr_X[i].fr.guess,fr_X[j].fr.guess,rotationWeight) < threshold;
+
+					if(to_delete[j] && visualizationLvl == 7){
+						printf("distance: %f threshold: %f\n",transformationdiff(fr_X[i].fr.guess,fr_X[j].fr.guess,rotationWeight),threshold);
+						std::vector<superpoint> X0 = Tsrc;
+						transformSuperPoints(X0,fr_X[i].fr.guess);
+						std::vector<superpoint> X1 = Tsrc;
+						transformSuperPoints(X1,fr_X[j].fr.guess);
+						show(X0,Tdst,X1,Tdst);
+					}
 				}
 			}
 		}
 	}
 
-	std::vector<FusionResults> fr_X2;
+	std::vector<InternalFusionResults> fr_X2;
 	for(unsigned int i = 0; i < nr; i++){
 		if(!to_delete[i]){
 			fr_X2.push_back(fr_X[i]);
@@ -356,7 +378,7 @@ double RegistrationRandom2::getStdDivVec(const std::vector<double> & V){
 void RegistrationRandom2::getResiduals(std::vector<double> & residuals_d, std::vector<double> & residuals_a, std::vector<double> & standard_div, std::vector<reglib::superpoint> & A, std::vector<reglib::superpoint> & Q){
 	unsigned int nr_matches = A.size();
 	residuals_d.resize(nr_matches);
-	residuals_a.resize(nr_matches);
+	//residuals_a.resize(nr_matches);
 
 	for(unsigned long i = 0; i < nr_matches; i++){
 		const reglib::superpoint & a = A[i];
@@ -370,7 +392,7 @@ void RegistrationRandom2::getResiduals(std::vector<double> & residuals_d, std::v
 		float qnz = q.nz;
 		float di = qnx*dx + qny*dy + qnz*dz;
 		residuals_d[i] = di/standard_div[i];
-		residuals_a[i] = 1.0-(a.nx*qnx + a.ny*qny + a.nz*qnz);
+		//residuals_a[i] = 1.0-(a.nx*qnx + a.ny*qny + a.nz*qnz);
 	}
 }
 
@@ -389,7 +411,10 @@ RegistrationOptimization RegistrationRandom2::getOptimization(std::vector<double
     Eigen::Matrix<double, 6, 1> ATb = Eigen::Matrix<double, 6, 1>::Zero();
     Eigen::Matrix<double, 6, 6> ATA = Eigen::Matrix<double, 6, 6>::Identity();
 
-	double info = pow(dfunc->getNoise()*nfunc->getNoise(),-2);
+	//double info = pow(dfunc->getNoise()*nfunc->getNoise(),-2);
+	double info = pow(dfunc->getNoise(),-2);
+
+	double sumInliers = 0;
 
     unsigned int nr_matches = X.size();
     for(unsigned int i = 0; i < nr_matches; i++){
@@ -418,7 +443,11 @@ RegistrationOptimization RegistrationRandom2::getOptimization(std::vector<double
         const double & di    = nx*diffX + ny*diffY + nz*diffZ;
         const double & angle = nx*dnx+ny*dny+nz*dnz;
 
-		double prob = dfunc->getProb(di/stddiv)*nfunc->getProb(1.0-angle);
+		double prob = dfunc->getProb(di/stddiv);//*nfunc->getProb(1.0-angle);
+		sumInliers += prob;
+
+		if(prob < 0.000000001){continue;}
+
 		double weight = info*prob/(stddiv*stddiv);
 
 		if(visualizationLvl == 5){
@@ -478,7 +507,11 @@ RegistrationOptimization RegistrationRandom2::getOptimization(std::vector<double
 		viewer->removeAllPointClouds();
 	}
 
-    return RegistrationOptimization (ATb,ATA);
+	RegistrationOptimization ro (ATb,ATA);
+	ro.info = info;
+	ro.overlap = double(sumInliers)/double(nr_matches);
+
+	return ro;
 }
 
 void RegistrationRandom2::show(std::vector<reglib::superpoint> & X1, std::vector<reglib::superpoint> & Y1,std::vector<reglib::superpoint> & X2, std::vector<reglib::superpoint> & Y2 ){
@@ -499,11 +532,11 @@ void RegistrationRandom2::show(std::vector<reglib::superpoint> & X1, std::vector
 }
 
 
-FusionResults RegistrationRandom2::refine(FusionResults guess, unsigned int nrp){
+InternalFusionResults RegistrationRandom2::refine(InternalFusionResults guess, unsigned int nrp, bool regularize){
 	unsigned int src_nrp = std::min(int(src.size()),int(nrp));
 	unsigned int dst_nrp = std::min(int(dst.size()),int(nrp));
 
-	Eigen::Matrix4d cp = guess.guess;
+	Eigen::Matrix4d cp = guess.fr.guess;
 
 	std::vector<superpoint> X = Tsrc;
 	std::vector<superpoint> Y = Tdst;
@@ -514,12 +547,10 @@ FusionResults RegistrationRandom2::refine(FusionResults guess, unsigned int nrp)
 
 	double score = 0;
 
-
-
-
 	//copy  functions
 	DistanceWeightFunction2 * dfunc = dfunc_->clone();
 	DistanceWeightFunction2 * nfunc = nfunc_->clone();
+
 
 	//Compute first pair of matches
 	std::vector<reglib::superpoint> Q = getMatches(X,Y,dst_trees3d);
@@ -531,81 +562,99 @@ FusionResults RegistrationRandom2::refine(FusionResults guess, unsigned int nrp)
 	std::vector<double> residual_standard_div = getStdDiv(X,Q);
 
 	getResiduals(residuals_d,residuals_a,residual_standard_div,X,Q);
-	dfunc->setRegularization(getStdDivVec(residuals_d));
-	nfunc->setRegularization(getStdDivVec(residuals_a));
+	if(regularize){
+		dfunc->setRegularization(getStdDivVec(residuals_d));
+	}else{
+		dfunc->setRegularization(0);
+	}
+	//nfunc->setRegularization(getStdDivVec(residuals_a));
 
 	//Reset functions
 	dfunc->reset();
-	nfunc->reset();
-
-//	dfunc->debugg_print = true;
-//	nfunc->debugg_print = true;
+	//nfunc->reset();
 
 	double start = getTime();
 
 	bool timestopped = false;
 	double maxtime = 0.1;
 
-	//printf("scores = [");
-
 	//iterate over regularization
 	for(unsigned int funcupdate=0; funcupdate < 100; ++funcupdate) {
-		if( (getTime()-start) > maxtime ){timestopped = true; break;}
+		//if( (getTime()-start) > maxtime ){timestopped = true; break;}
 		if(visualizationLvl == 2){show(Xstart,Y,X,Y );}
 
 		//Normal ICP loop
-		for(unsigned int rematching=0; rematching < 20; ++rematching) {
+		for(unsigned int rematching=0; rematching < 10; ++rematching) {
 			Eigen::Matrix4d before_rematch = cp;
 			if(rematching > 0){
-                Q = getMatches(X,Y,dst_trees3d);
-				residual_standard_div = getStdDiv(X,Q);
+				Q = getMatches(X,Y,dst_trees3d);
 			}
+
+
             //Retrain
-			if(rematching % 2 == 0){
-				getResiduals(residuals_d,residuals_a,residual_standard_div,X,Q);
+			if(rematching % 1 == 0){
+				if(!(funcupdate==0 && rematching == 0)){
+					residual_standard_div = getStdDiv(X,Q);
+					getResiduals(residuals_d,residuals_a,residual_standard_div,X,Q);
+				}
 				dfunc->computeModel(residuals_d);
-				nfunc->computeModel(residuals_a);
+				//nfunc->computeModel(residuals_a);
 			}
 
 			if(visualizationLvl == 3){show(Xstart,Y,X,Y );}
 
             //Optimize
-            for(unsigned int optimization=0; optimization < 10; ++optimization) {
+			for(unsigned int optimization=0; optimization < 10; ++optimization) {
 				if(visualizationLvl == 4){show(Xstart,Y,X,Y );}
 
+				//printf("%i %i %i\n",funcupdate,rematching,optimization);
+				guess.ro = getOptimization(residual_standard_div,dfunc,nfunc,X,Q);
+				Eigen::Matrix4d To = guess.ro.solve().matrix().inverse();
 
-                RegistrationOptimization ro = getOptimization(residual_standard_div,dfunc,nfunc,X,Q);
-				Eigen::Matrix4d To = ro.solve().matrix().inverse();
-
-				score = ro.getScore();
+				score = guess.ro.getScore();
 
                 transformSuperPoints(X,To);
 				cp = To*cp;
 
-				if(transformationdiff(To,Eigen::Matrix4d::Identity(),rotationweight) < dfunc->getNoise()*0.01){//Check convergence
+				double change = transformationdiff(To,Eigen::Matrix4d::Identity(),rotationweight);
+				//printf("change: %7.7f noise: %7.7f\n",change,dfunc->getNoise()*0.1);
+				if(change < dfunc->getNoise()*0.1){//Check convergence
 					break;
 				}
             }
 
-			if(transformationdiff(cp,before_rematch,rotationweight) < dfunc->getNoise()*0.1){//Check convergence
-				break;
-			}
+			double changeRematch = transformationdiff(cp,before_rematch,rotationweight);
+
+			//printf("%i %i -> overlap: %5.5f noise: %5.5f reg: %5.5f ",funcupdate,rematching,guess.ro.overlap,dfunc->getNoise(),dfunc->regularization);
+			//printf("changeRematch: %7.7f threshold: %7.7f\n",changeRematch,dfunc->getNoise());
+
+			if(guess.ro.overlap < 0.001)			{break;}//If no overlap...
+			if(changeRematch < dfunc->getNoise())	{break;}//Check convergence
 		}
 
+		//printf("before %5.5f / %5.5f -> %f\n",dfunc->regularization,dfunc->getNoise(),dfunc->regularization/dfunc->getNoise());
+
 		dfunc->update();
-		nfunc->update();
-		if(dfunc->regularization/dfunc->getNoise() < 0.01 && nfunc->regularization/nfunc->getNoise() < 0.01){
-			break;
-		}
+		//nfunc->update();
+
+		double ratioD = dfunc->regularization/dfunc->getNoise();
+		//double ratioN = dfunc->regularization/dfunc->getNoise();
+
+		if(guess.ro.overlap < 0.001){break;}
+		if(ratioD < 0.1)			{break;}
+
+		//printf("after %5.5f / %5.5f -> %f\n",dfunc->regularization,dfunc->getNoise(),dfunc->regularization/dfunc->getNoise());
+		//printf("ratioD: %5.5f ratioN: %5.5f\n",ratioD,ratioN);
+		//if(ratioD < 0.1 && ratioN < 0.1){break;}
 	}
 
 	//printf("];\n");
 
-	if(visualizationLvl > 0){show(Xstart,Y,X,Y );}
+	if(visualizationLvl > 0 && visualizationLvl < 6){show(Xstart,Y,X,Y );}
 
-
-	guess.guess = cp;
-	guess.score = score;
+	guess.fr.guess = cp;
+	guess.fr.score = score;
+	delete dfunc;
 
 	return guess;
 }
@@ -622,7 +671,7 @@ FusionResults RegistrationRandom2::getTransform(Eigen::MatrixXd guess){
 
 
 
-	std::vector<FusionResults> fr_X;
+	std::vector<InternalFusionResults> fr_X;
 
 	for(double rx = 0; rx < steprx; rx++){
 		for(double ry = 0; ry < stepry; ry++){
@@ -639,7 +688,7 @@ FusionResults RegistrationRandom2::getTransform(Eigen::MatrixXd guess){
 							//Eigen::Affine3d guess =  Ymean*randomrot*Xmean.inverse();
 							Eigen::Affine3d guess =  randomrot;
 
-							fr_X.push_back(FusionResults(guess.matrix(),0));
+							fr_X.push_back( InternalFusionResults( FusionResults(guess.matrix(),0) ) );
 
 						}
 					}
@@ -647,6 +696,9 @@ FusionResults RegistrationRandom2::getTransform(Eigen::MatrixXd guess){
 			}
 		}
 	}
+
+	Eigen::Matrix4d src_start = getTransform(src_random, Tsrc);
+	Eigen::Matrix4d dst_start = getTransform(dst_random, Tdst);
 
 	if(visualizationLvl > 0){
 		pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr X_cld = getPointCloudFromVector(src,3,0,255,0);
@@ -671,51 +723,93 @@ FusionResults RegistrationRandom2::getTransform(Eigen::MatrixXd guess){
 
 	double rejection_area = 0.1;
 	unsigned int target_nr = fr_X.size();
-	for(unsigned int tp = 500; tp <= 16000; tp *= 2){
+	bool first = true;
+	for(unsigned int tp = 250; tp <= 4000; tp *= 4){
 		printf("------------ %i ------------\n",tp);
 		unsigned int nr_X = fr_X.size();
 		unsigned int todo = std::min(nr_X,target_nr);
 		if(visualizationLvl == 0){
 			#pragma omp parallel for num_threads(8) schedule(dynamic)
 			for(unsigned int ax = 0; ax < todo; ax++){//Register
-				fr_X[ax] = refine(fr_X[ax],tp);
+				double beforescore = fr_X[ax].fr.score;
+				fr_X[ax] = refine(fr_X[ax],tp,first);
+				//printf("%i -> %i/%i before: %f after: %f overlap: %f\n",tp,ax+1,todo,beforescore,fr_X[ax].fr.score,fr_X[ax].ro.overlap);
 			}
 		}else{
 			for(unsigned int ax = 0; ax < todo; ax++){//Register
-				double beforescore = fr_X[ax].score;
-				fr_X[ax] = refine(fr_X[ax],tp);
-				printf("%i -> %i/%i before: %f after: %f\n",tp,ax+1,todo,beforescore,fr_X[ax].score);
+				double beforescore = fr_X[ax].fr.score;
+				fr_X[ax] = refine(fr_X[ax],tp,first);
+				//printf("%i -> %i/%i before: %f after: %f overlap: %f\n",tp,ax+1,todo,beforescore,fr_X[ax].fr.score,fr_X[ax].ro.overlap);
 			}
 		}
 
 		//Sort scores
 		std::sort (fr_X.begin(), fr_X.end(), compareFusionResults);
 
-
 		//Prune half
 		target_nr = std::max(8,int(target_nr/2));
 
-//		while(fr_X.size() > target_nr){
-//			//printf("fr_X.size(): %i\n",fr_X.size());
-//			//Prune duplicates
-//			pruneDuplicates(fr_X, rejection_area,rotationweight);
-//			if(fr_X.size() > target_nr){
-//				rejection_area *= 1.1;
-//			}
-//		}
 
+		printf("before pruning %i ",fr_X.size());
 		pruneDuplicates(fr_X, rejection_area,rotationweight);
+		printf("after pruning %i\n",fr_X.size());
 
 		//fr_X.resize(std::min(int(target_nr),int(fr_X.size())));
+		//first = false;
+		printf("%s::%5.5fs\n",__PRETTY_FUNCTION__,getTime()-startTime);
 
+	}
+
+	if(visualizationLvl == 6){
+		for(unsigned int ax = 0; ax < fr_X.size(); ax++){
+
+			std::vector<superpoint> X;
+			printf("1st test %i\n",ax);
+			std::vector<superpoint> X0 = Tsrc;
+			transformSuperPoints(X0,fr_X[ax].fr.guess);
+//			show(src,dst,X0,Tdst);
+
+//			printf("2nd test %i\n",ax);
+//			X = src;
+//			transformSuperPoints(X,dst_start*fr_X[ax].guess*src_start.inverse());
+//			show(X0,Tdst,X,dst);
+
+//			printf("3rd test %i\n",ax);
+//			X = src;
+//			transformSuperPoints(X,src_start*fr_X[ax].guess*dst_start.inverse());
+//			show(X0,Tdst,X,dst);
+
+			printf("4th test %i\n",ax);
+			X = src;
+			transformSuperPoints(X,dst_start.inverse()*fr_X[ax].fr.guess*src_start);
+			show(X0,Tdst,X,dst);
+
+//			printf("5th test %i\n",ax);
+//			X = src;
+//			transformSuperPoints(X,src_start.inverse()*fr_X[ax].guess*dst_start);
+//			show(X0,Tdst,X,dst);
+
+//			printf("6th test %i\n",ax);
+//			X = src;
+//			transformSuperPoints(X,dst_start*fr_X[ax].guess*src_start);
+//			show(X0,Tdst,X,dst);
+
+//			printf("7th test %i\n",ax);
+//			X = src;
+//			transformSuperPoints(X,src_start*fr_X[ax].guess*dst_start);
+//			show(X0,Tdst,X,dst);
+
+		}
 	}
 
 	FusionResults fr;
 	for(unsigned int ax = 0; ax < fr_X.size() && ax < 500; ax++){
-		fr.candidates.push_back(fr_X[ax].guess);
+		fr.candidates.push_back(dst_start.inverse()*fr_X[ax].fr.guess*src_start);
 		fr.counts.push_back(1);
-		fr.scores.push_back(fr_X[ax].score);
+		fr.scores.push_back(fr_X[ax].fr.score);
 	}
+
+	printf("%s::%5.5fs\n",__PRETTY_FUNCTION__,getTime()-startTime);
 
 	return fr;
 }

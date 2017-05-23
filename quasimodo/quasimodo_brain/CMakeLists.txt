@@ -198,7 +198,7 @@ target_link_libraries(	make_metaroom_lower_level quasimodo_CameraOptimizer quasi
 
 add_executable(			testmerge src/testmerge.cpp)
 add_dependencies(		testmerge roscpp quasimodo_msgs_generate_messages_cpp)
-target_link_libraries(	testmerge quasimodo_distribution quasimodo_weightlib quasimodo_superpoint quasimodo_brain_util quasimodo_ModelDatabase image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
+target_link_libraries(	testmerge quasimodo_OcclusionScore quasimodo_ModelUpdater quasimodo_distribution quasimodo_weightlib quasimodo_superpoint quasimodo_brain_util quasimodo_ModelDatabase image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
 add_executable(			visualizeDB src/visualizeDB.cpp)
 add_dependencies(		visualizeDB roscpp quasimodo_msgs_generate_messages_cpp)

@@ -81,6 +81,8 @@ DistanceWeightFunction2PPR3::DistanceWeightFunction2PPR3(Distribution * dist_,	d
 	dist    = dist_;//new GeneralizedGaussianDistribution(true,true);//GaussianDistribution();//GeneralizedGaussianDistribution();//GaussianDistribution();
 
     tune = false;
+
+	reg_shrinkage = 0.5;
 }
 
 DistanceWeightFunction2PPR3::DistanceWeightFunction2PPR3(	double maxd_, int histogram_size_){
@@ -140,7 +142,7 @@ DistanceWeightFunction2PPR3::DistanceWeightFunction2PPR3(	double maxd_, int hist
 	blur				= 0.03;
 	data_per_bin		= 30;
 
-    min_histogram_size  = 50;
+	min_histogram_size  = 50;
     max_histogram_size  = 1000;
 
 	update_size			= true;//(setting&2 != 1);
@@ -153,7 +155,9 @@ DistanceWeightFunction2PPR3::DistanceWeightFunction2PPR3(	double maxd_, int hist
 
 	sp      = new SignalProcessing();
 	dist    = new GeneralizedGaussianDistribution(true,true);//GaussianDistribution();//GeneralizedGaussianDistribution();//GaussianDistribution();
-    tune = false;
+	tune = false;
+
+	reg_shrinkage = 0.5;
 }
 
 DistanceWeightFunction2PPR3::~DistanceWeightFunction2PPR3(){
@@ -1043,6 +1047,7 @@ bool DistanceWeightFunction2PPR3::update(){
         printf("p = [");for(int k = 0; k < endLen; k++){printf(" %2.2f",prob[k]);}printf("];\n");
         printf("h = [");for(int k = 0; k < endLen; k++){printf(" %4.4i",int(histogram[k]));}printf("];\n");
         printf("----\n");
+		printf("reg_shrinkage: %f\n",reg_shrinkage);
     }
 
 	int iteration = 0;

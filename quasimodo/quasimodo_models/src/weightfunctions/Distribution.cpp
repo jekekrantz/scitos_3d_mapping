@@ -101,17 +101,17 @@ double Distribution::getDiffScore(std::vector<double> & diffs, std::vector<doubl
 
     //small - large = bad
     double ratiosum = 0;
-    for(unsigned int i = 1; i < nr_data; i++){
-        double ratiodiff;
-        if(mean < i){
-            ratiodiff = ratios[i]-ratios[i-1];
-        }else{
-            ratiodiff = ratios[i-1]-ratios[i];
-        }
-        double ratiocost = 0;
-        if(ratiodiff > 0){	ratiocost = ratiodiff*ratioweight;}
-        ratiosum += ratiocost;
-    }
+//    for(unsigned int i = 1; i < nr_data; i++){
+//        double ratiodiff;
+//        if(mean < i){
+//            ratiodiff = ratios[i]-ratios[i-1];
+//        }else{
+//            ratiodiff = ratios[i-1]-ratios[i];
+//        }
+//        double ratiocost = 0;
+//        if(ratiodiff > 0){	ratiocost = ratiodiff*ratioweight;}
+//        ratiosum += ratiocost;
+//    }
 
 //    printf("costpen: %f ",costpen);
 //    printf("sum: %f ratiosum: %f\n",sum,ratiosum);

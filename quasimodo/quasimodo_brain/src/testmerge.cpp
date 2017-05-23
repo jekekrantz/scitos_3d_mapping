@@ -4,10 +4,13 @@
 
 //#include "/home/johane/koltuntest/FastGlobalRegistration/source/FastGlobalRegistration/app.cpp"
 #include "reg2/RegistrationRandom2.cpp"
+#include "mu2/ModelUpdater2.cpp"
 #include <pcl/features/fpfh_omp.h>
 
 
 using namespace quasimodo_brain;
+
+int visualizationLvl = 0;
 
 int state = -1;
 void keyboardEventOccurred (const pcl::visualization::KeyboardEvent &event, void* viewer_void){
@@ -305,7 +308,7 @@ void testRegister(reglib::Model * model1, reglib::Model * model2, boost::shared_
 	reglib::RegistrationRandom2 *	reg	= new reglib::RegistrationRandom2(5);
 	//reg->initTransform = (Eigen::AngleAxisd(-30*2*M_PI/360.0, Eigen::Vector3d::UnitX())).matrix();
 	reg->steprx = 1;
-	reg->stepry	= 36;
+	reg->stepry	= 8;
 	reg->steprz	= 1;
 //	reg->src_meantype	= 3;
 //	reg->dst_meantype	= 3;
@@ -319,9 +322,9 @@ void testRegister(reglib::Model * model1, reglib::Model * model2, boost::shared_
 	//reg->stop_rz	= reg->start_rz;
 
 
-	reg->visualizationLvl				= 1;
+	reg->visualizationLvl				= visualizationLvl;
 	reg->viewer							= viewer;
-	reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model2, reg);
+	reglib::ModelUpdater2 * mu	= new reglib::ModelUpdater2( model2, reg);
 	mu->occlusion_penalty               = 15;
 	mu->viewer							= viewer;
 	mu->show_scoring					= true;//fuse scoring show
@@ -340,6 +343,7 @@ void testRegister(reglib::Model * model1, reglib::Model * model2, boost::shared_
 
 
 int main(int argc, char **argv){
+	visualizationLvl = atoi(argv[1]);
 
 	ros::init(argc, argv, "testmerge");
 	ros::NodeHandle n;
