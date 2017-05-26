@@ -1637,13 +1637,57 @@ double Model::getScore(int type){
 				sum += points[j].point_information;
 			}
 		}
-	}else if(type == 3){
-		if(frames.size() != 0){
-			for(unsigned int j = 0; j < points.size(); j++){
-				sum += sqrt(points[j].point_information);
-			}
-		}
-	}else{
+    }else if(type == 3){
+        if(frames.size() != 0){
+            for(unsigned int j = 0; j < points.size(); j++){
+                sum += sqrt(points[j].point_information);
+            }
+        }
+    }else if(type == 4){
+        double w = 0;
+        double x = 0;
+        double y = 0;
+        double z = 0;
+        for(unsigned int j = 0; j < points.size(); j++){
+            const superpoint & p = points[j];
+            w += p.point_information;
+            x += p.point_information * p.x;
+            y += p.point_information * p.y;
+            z += p.point_information * p.z;
+        }
+
+        x /= w;
+        y /= w;
+        z /= w;
+
+
+
+        Eigen::Matrix3d covMat = Eigen::Matrix3d::Zero() ;
+
+        for(unsigned int j = 0; j < points.size(); j++){
+            const superpoint & p = points[j];
+            double dw  = p.point_information;
+            double dx = p.x-x;
+            double dy = p.y-y;
+            double dz = p.z-z;
+            covMat(0,0) += dw*dx*dx;
+            covMat(0,1) += dw*dx*dy;
+            covMat(0,2) += dw*dx*dz;
+            covMat(1,1) += dw*dy*dy;
+            covMat(1,2) += dw*dy*dz;
+            covMat(2,2) += dw*dz*dz;
+        }
+        covMat(1,0) = covMat(0,1);
+        covMat(2,0) = covMat(0,2);
+        covMat(2,1) = covMat(1,2);
+
+        covMat /= w;
+
+        Eigen::JacobiSVD<Eigen::MatrixXd> svd(covMat, Eigen::ComputeThinU | Eigen::ComputeThinV);
+        VectorXd S = svd.singularValues();
+
+        return S(2)/(S(0)+S(1)+S(2));
+    }else{
 		sum += submodels.size();
 	}
 	return sum;
@@ -1651,4 +1695,21 @@ double Model::getScore(int type){
 
 
 }
+
+//MatrixXf U = svd.matrixU();
+//U = -U;
+
+//normal_x 			= U(0,2);
+//normal_y 			= U(1,2);
+//normal_z 			= U(2,2);
+//if( normal_z < 0){
+//    normal_x*=-1;
+//    normal_y*=-1;
+//    normal_z*=-1;
+//}
+
+//delete x;
+//delete y;
+//delete z;
+//delete weights;
 

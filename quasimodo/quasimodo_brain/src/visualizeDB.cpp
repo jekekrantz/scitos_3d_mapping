@@ -170,10 +170,54 @@ void add(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cld, float x, float y, float z){
 }
 
 void addToViewer(pcl::PointXYZ prev, boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer, reglib::Model * model, std::string acc = "model", float startx = 0, float starty = 0, float startz = 0){
-	model->recomputeModelPoints();
-	printf("acc: %s\n",acc.c_str());
-	printf("scores: %f %f %f %f\n",model->getScore(0),model->getScore(1),model->getScore(2),model->getScore(3));
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cld	= model->getPCLcloud(1,false);
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cld (new pcl::PointCloud<pcl::PointXYZRGB> ());
+    if(model->frames.size() == 0){
+        model->recomputeModelPoints();
+        cld	= model->getPCLcloud(1,false);
+    }else{
+        for(unsigned int j = 0; j < model->frames.size(); j++){
+//            cv::Mat maskmat = model->modelmasks[j]->getMask();
+//            cv::Mat rgb	 = model->frames[j]->rgb.clone();
+//            std::vector<std::vector<cv::Point> > contours;
+//            std::vector<cv::Vec4i> hierarchy;
+//            cv::findContours( maskmat, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0) );
+//            for( unsigned int i = 0; i < contours.size(); i++ ){
+//                cv::drawContours( rgb, contours, i, cv::Scalar( 0, 0, 255 ), 2, 8, hierarchy, 0, cv::Point() );
+//                cv::drawContours( rgb, contours, i, cv::Scalar( 0, 255, 0 ), 1, 8, hierarchy, 0, cv::Point() );
+//            }
+//            cv::namedWindow( "rgb"	, cv::WINDOW_AUTOSIZE );
+//            cv::imshow( "rgb",	rgb);
+//            cv::waitKey(0);
+
+            bool * mask = model->modelmasks[j]->maskvec;
+            pcl::PointCloud<pcl::PointXYZRGB>::Ptr X (new pcl::PointCloud<pcl::PointXYZRGB> ());
+            pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr frame_cld =  model->frames[j]->getPCLcloud();
+            int r = rand()%256;
+            int g = rand()%256;
+            int b = rand()%256;
+            for(unsigned int k = 0; k < frame_cld->points.size(); k++){
+                pcl::PointXYZRGBNormal p = frame_cld->points[k];
+                if(mask[k] && !std::isnan(p.x)){
+                    pcl::PointXYZRGB p2;
+                    p2.r = r;
+                    p2.g = g;
+                    p2.b = b;
+                    p2.x = p.x;
+                    p2.y = p.y;
+                    p2.z = p.z;
+                    X->points.push_back(p2);
+                }
+            }
+
+            pcl::PointCloud<pcl::PointXYZRGB>::Ptr Xt (new pcl::PointCloud<pcl::PointXYZRGB> ());
+            pcl::transformPointCloud (*X, *Xt, model->relativeposes[j]);
+            *cld += *Xt;
+        }
+    }
+
+
+
 	float maxx, minx, maxy, miny, maxz, minz;
 	getBox(cld,maxx,minx,maxy,miny,maxz, minz);
 	add(cld,startx-minx,starty-miny,startz-minz);
@@ -187,27 +231,33 @@ void addToViewer(pcl::PointXYZ prev, boost::shared_ptr<pcl::visualization::PCLVi
 		y += cld->points[i].y;
 		z += cld->points[i].z;
 	}
-
 	pcl::PointXYZ curr;
-	curr.x = x/double(cld->points.size());//+0.5*(maxx+minx);
-	curr.y = y/double(cld->points.size());//+0.5*(maxy+miny);
-	curr.z = z/double(cld->points.size());//+0.5*(maxz+minz);
+    curr.x = x/double(cld->points.size());
+    curr.y = y/double(cld->points.size());
+    curr.z = z/double(cld->points.size());
 	viewer->addLine<pcl::PointXYZ> (prev, curr,1,0,0,"line_"+acc);
 
-	double prev_x = startx;
 	for(unsigned int i = 0; i < model->submodels.size(); i++){
         addToViewer(curr,viewer,model->submodels[i],acc+"_"+std::to_string(i),startx+i,starty+1.3,0);
-        //prev_x += 0.3+maxx-minx;
 	}
 }
+
+
+
+class Compare
+{
+public:
+	bool operator() (std::pair<double,std::string> a, std::pair<double,std::string> b)
+	{
+		return a.first < b.first;
+	}
+};
 
 int main(int argc, char **argv){
 
 	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer>(new pcl::visualization::PCLVisualizer ("Modelserver Viewer"));
-	viewer->addCoordinateSystem(0.1);
-	viewer->setBackgroundColor(1.0,1.0,1.0);
-//	viewer->addPointCloud<pcl::PointXYZRGB> (cld1, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB>(cld1), "model1");
-//	viewer->addPointCloud<pcl::PointXYZRGB> (cld2, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB>(cld2), "model2");
+    //viewer->addCoordinateSystem(0.1);
+    viewer->setBackgroundColor(1.0,0.0,1.0);
 
 	std::string filepath = "./";
 
@@ -215,102 +265,158 @@ int main(int argc, char **argv){
 		filepath = std::string(argv[1]);
 	}
 
+
+
+	std::priority_queue<std::pair<double,std::string>, std::vector<std::pair<double,std::string>>, Compare> pq;
+
+
+
+
 	ModelStorageFile * storage = new ModelStorageFile(filepath);
 	storage->print();
 	storage->loadAllModels();
 	storage->print();
 
+	for (std::map<std::string,std::string>::iterator it=storage->keyPathMap.begin(); it!=storage->keyPathMap.end(); ++it){
+		reglib::Model * model = storage->fetch(it->first);
+		pq.push(std::make_pair(model->getScore(2),it->first));
+		storage->fullHandback();
+	}
+
 	std::vector<int> dist;
 	dist.resize(100);
 	for(unsigned int i = 0; i < dist.size(); i++){dist[i] = 0;}
 
+	while(pq.size() > 0){
+		std::pair<double,std::string> pair = pq.top();
+		printf("score: %f\n",pair.first);
+		pq.pop();
+		reglib::Model * model = storage->fetch(pair.second);
 
-	for (std::map<std::string,std::string>::iterator it=storage->keyPathMap.begin(); it!=storage->keyPathMap.end(); ++it){
-
-		reglib::Model * model = storage->fetch(it->first);
+		printf("keyval:%s\n",model->submodels.front()->keyval.c_str());
 		int subs = model->submodels.size();
 		if(model->frames.size() > 0){subs++;}
 		dist[subs]+=1;
 
-//		int nr_frames = 0;
-//		nr_frames += model->frames.size();
-//		for(unsigned int i = 0; i < model->submodels.size(); i++){
-//			nr_frames += model->submodels[i]->frames.size();
-//		}
-//		print("%i\n",nr_frames);
-		printf("%f %f\n",model->getScore(0),model->getScore(4));
+		pcl::PointXYZ curr;
+		curr.x = 0;
+		curr.y = 0;
+		curr.z = 0;
 
 		viewer->removeAllPointClouds();
 		viewer->removeAllShapes();
-        if(model->submodels.size() > 1 && model->getScore(3) > 1000 && model->getScore(2) > 250 && model->getScore(1) > 1000){
+		addToViewer(curr,viewer,model);
+		viewer->spin();
+
+/*
+		viewer->removeAllPointClouds();
+		viewer->removeAllShapes();
+		if(model->submodels.size() > 1 && model->getScore(3) > 1000 && model->getScore(2) > 250 && model->getScore(1) > 1000){
 			for(unsigned int i = 0; i < model->submodels.size(); i++){
 				printf("key : %s\n",model->submodels[i]->keyval.c_str());
 			}
-			pcl::PointXYZ curr;
-			curr.x = 0;
-			curr.y = 0;
-			curr.z = 0;
 
 
-            reglib::RegistrationRandom *	reg	= new reglib::RegistrationRandom(5);
-            reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model, reg);
-            mu->occlusion_penalty               = 15;
-            mu->viewer							= viewer;
-            mu->show_scoring					= false;//fuse scoring show
-            reg->visualizationLvl				= 0;
 
-            std::vector<reglib::Model *> models;
-            std::vector<Eigen::Matrix4d> rps;
-            mu->addModelsToVector(models,rps,model,Eigen::Matrix4d::Identity());
+			reglib::RegistrationRandom *	reg	= new reglib::RegistrationRandom(5);
+			reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model, reg);
+			mu->occlusion_penalty               = 15;
+			mu->viewer							= viewer;
+			mu->show_scoring					= false;//fuse scoring show
+			reg->visualizationLvl				= 0;
 
-
-            //Show alignment
-            std::vector<std::vector < reglib::OcclusionScore > > ocs = mu->computeOcclusionScore(models,rps,1,mu->show_scoring);
-            std::vector<std::vector < float > > scores = mu->getScores(ocs);
-            std::vector<int> partition = mu->getPartition(scores,2,5,2);
-            //std::vector<int> partition2 = getGroupings(scores, scores.size(),0,1,true);
+			std::vector<reglib::Model *> models;
+			std::vector<Eigen::Matrix4d> rps;
+			mu->addModelsToVector(models,rps,model,Eigen::Matrix4d::Identity());
 
 
-            for(unsigned int i = 0; i < scores.size(); i++){
-                for(unsigned int j = 0; j < scores.size(); j++){
-                    if(scores[i][j] >= 0){printf(" ");}
-                    printf("%5.5f ",0.00001*scores[i][j]);
-                }
-                printf("\n");
-            }
-            printf("partition  "); for(unsigned int i = 0; i < partition.size(); i++){printf("%i ", partition[i]);} printf("\n");
-            //printf("partition2 "); for(unsigned int i = 0; i < partition2.size(); i++){printf("%i ", partition2[i]);} printf("\n");
+			//Show alignment
+			std::vector<std::vector < reglib::OcclusionScore > > ocs = mu->computeOcclusionScore(models,rps,1,mu->show_scoring);
+			std::vector<std::vector < float > > scores = mu->getScores(ocs);
+			std::vector<int> partition = mu->getPartition(scores,2,5,2);
+			//std::vector<int> partition2 = getGroupings(scores, scores.size(),0,1,true);
 
-            delete mu;
-            delete reg;
-            addToViewer(curr,viewer,model);
-            viewer->spin();
 
-//            viewer->removeAllPointClouds();
-//            viewer->removeAllShapes();
-//            //model->recomputeModelPoints(Matrix4d::Identity(),viewer);
+			for(unsigned int i = 0; i < scores.size(); i++){
+				for(unsigned int j = 0; j < scores.size(); j++){
+					if(scores[i][j] >= 0){printf(" ");}
+					printf("%5.5f ",0.00001*scores[i][j]);
+				}
+				printf("\n");
+			}
+			printf("partition  "); for(unsigned int i = 0; i < partition.size(); i++){printf("%i ", partition[i]);} printf("\n");
 
-//            vector<superpoint> spvec;
-////            addAllSuperPoints( spvec,model,Matrix4d::Identity(),viewer);
-////exit(0);
+			delete mu;
+			delete reg;
 
-//            std::vector<std::vector < reglib::OcclusionScore > > ocs2 = computeOcclusionScore(models,rps,1, viewer, 0);
-//            std::vector<std::vector < float > > scores2 = mu->getScores(ocs2);
-//            printf("OCS2: \n");
-//            for(unsigned int i = 0; i < scores2.size(); i++){
-//                for(unsigned int j = 0; j < scores2.size(); j++){
-//                    if(scores2[i][j] >= 0){printf(" ");}
-//                    printf("%5.5f ",0.00001*scores2[i][j]);
+		}
+*/
+		storage->fullHandback();
+	}
+
+
+//	for (std::map<std::string,std::string>::iterator it=storage->keyPathMap.begin(); it!=storage->keyPathMap.end(); ++it){
+//		reglib::Model * model = storage->fetch(it->first);
+//        printf("keyval:%s\n",model->submodels.front()->keyval.c_str());
+//		int subs = model->submodels.size();
+//		if(model->frames.size() > 0){subs++;}
+//		dist[subs]+=1;
+
+//        pcl::PointXYZ curr;
+//        curr.x = 0;
+//        curr.y = 0;
+//        curr.z = 0;
+
+//        viewer->removeAllPointClouds();
+//        viewer->removeAllShapes();
+//        addToViewer(curr,viewer,model);
+//        viewer->spin();
+
+///*
+//		viewer->removeAllPointClouds();
+//		viewer->removeAllShapes();
+//        if(model->submodels.size() > 1 && model->getScore(3) > 1000 && model->getScore(2) > 250 && model->getScore(1) > 1000){
+//			for(unsigned int i = 0; i < model->submodels.size(); i++){
+//				printf("key : %s\n",model->submodels[i]->keyval.c_str());
+//			}
+
+
+
+//            reglib::RegistrationRandom *	reg	= new reglib::RegistrationRandom(5);
+//            reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model, reg);
+//            mu->occlusion_penalty               = 15;
+//            mu->viewer							= viewer;
+//            mu->show_scoring					= false;//fuse scoring show
+//            reg->visualizationLvl				= 0;
+
+//            std::vector<reglib::Model *> models;
+//            std::vector<Eigen::Matrix4d> rps;
+//            mu->addModelsToVector(models,rps,model,Eigen::Matrix4d::Identity());
+
+
+//            //Show alignment
+//            std::vector<std::vector < reglib::OcclusionScore > > ocs = mu->computeOcclusionScore(models,rps,1,mu->show_scoring);
+//            std::vector<std::vector < float > > scores = mu->getScores(ocs);
+//            std::vector<int> partition = mu->getPartition(scores,2,5,2);
+//            //std::vector<int> partition2 = getGroupings(scores, scores.size(),0,1,true);
+
+
+//            for(unsigned int i = 0; i < scores.size(); i++){
+//                for(unsigned int j = 0; j < scores.size(); j++){
+//                    if(scores[i][j] >= 0){printf(" ");}
+//                    printf("%5.5f ",0.00001*scores[i][j]);
 //                }
 //                printf("\n");
 //            }
+//            printf("partition  "); for(unsigned int i = 0; i < partition.size(); i++){printf("%i ", partition[i]);} printf("\n");
 
-//            std::vector<ModelGrouping> gg = getGroupings(scores2, scores2.size(),0,1,true);
+//            delete mu;
+//            delete reg;
 
-//            viewer->spin();
-		}
-		storage->fullHandback();
-	}
+//		}
+//*/
+//		storage->fullHandback();
+//	}
 
 	printf("dist = [");
 	for(unsigned int i = 1; i < dist.size(); i++){printf("%i ",dist[i]);}

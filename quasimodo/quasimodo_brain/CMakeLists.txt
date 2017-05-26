@@ -156,7 +156,7 @@ target_link_libraries(	segmentationserver quasimodo_brain_util quasimodo_ModelUp
 
 add_executable(			metaroom_additional_view_processing src/metaroom_additional_view_processing.cpp)
 add_dependencies(		metaroom_additional_view_processing roscpp quasimodo_msgs_generate_messages_cpp object_manager_msgs_generate_messages_cpp semantic_map_msgs_generate_messages_cpp)
-target_link_libraries(	metaroom_additional_view_processing quasimodo_OcclusionScore quasimodo_superpoint quasimodo_ModelUpdater quasimodo_brain_util quasimodo_ModelDatabase quasimodo_Mesher image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
+target_link_libraries(	metaroom_additional_view_processing quasimodo_CameraOptimizer quasimodo_OcclusionScore quasimodo_superpoint quasimodo_ModelUpdater quasimodo_brain_util quasimodo_ModelDatabase quasimodo_Mesher image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
 add_executable(			AnnotationTool src/AnnotationTool.cpp)
 add_dependencies(		AnnotationTool roscpp quasimodo_msgs_generate_messages_cpp object_manager_msgs_generate_messages_cpp semantic_map_msgs_generate_messages_cpp)
@@ -198,11 +198,16 @@ target_link_libraries(	make_metaroom_lower_level quasimodo_CameraOptimizer quasi
 
 add_executable(			testmerge src/testmerge.cpp)
 add_dependencies(		testmerge roscpp quasimodo_msgs_generate_messages_cpp)
-target_link_libraries(	testmerge quasimodo_OcclusionScore quasimodo_ModelUpdater quasimodo_distribution quasimodo_weightlib quasimodo_superpoint quasimodo_brain_util quasimodo_ModelDatabase image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
+target_link_libraries(	testmerge quasimodo_ReprojectionResult quasimodo_OcclusionScore quasimodo_ModelUpdater quasimodo_distribution quasimodo_weightlib quasimodo_superpoint quasimodo_brain_util quasimodo_ModelDatabase image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
 add_executable(			visualizeDB src/visualizeDB.cpp)
 add_dependencies(		visualizeDB roscpp quasimodo_msgs_generate_messages_cpp)
 target_link_libraries(	visualizeDB quasimodo_ReprojectionResult quasimodo_OcclusionScore quasimodo_superpoint quasimodo_brain_util quasimodo_ModelDatabase image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
+
+
+add_executable(			sweep_pixel_correct src/sweep_pixel_correct.cpp)
+add_dependencies(		sweep_pixel_correct roscpp quasimodo_msgs_generate_messages_cpp)
+target_link_libraries(	sweep_pixel_correct quasimodo_CameraOptimizer quasimodo_DescriptorExtractor quasimodo_distribution quasimodo_KeyPoint quasimodo_descriptor quasimodo_superpoint quasimodo_brain_util quasimodo_ModelDatabase  image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
 
 #############

@@ -5,6 +5,7 @@ ModelStorageFile::ModelStorageFile(std::string filepath_){
     framepath = filepath+"/frames";
     saveCounter = 0;
     quasimodo_brain::guaranteeFolder(filepath);
+    quasimodo_brain::guaranteeFolder(filepath+"/mongo");
     quasimodo_brain::guaranteeFolder(framepath);
     while(true){
         char buf [1024];

@@ -4,6 +4,7 @@ ModelDatabaseBasic::ModelDatabaseBasic(){storage = new ModelStorageFile();}
 ModelDatabaseBasic::~ModelDatabaseBasic(){}
 
 bool ModelDatabaseBasic::add(reglib::Model * model){
+    model->keyval = std::to_string(rand());
     storage->add(model);
     modelkeys.insert(model->keyval);
 	return true;

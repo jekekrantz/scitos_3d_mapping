@@ -107,7 +107,7 @@ bool addIfPossible(reglib::Model * model, ModelStorageFile * current_modelstorag
 }
 
 bool addToDB(reglib::Model * model, ModelStorageFile * current_modelstorage, ModelDatabase * current_modeldatabase, bool add){
-
+    return false;
 	if(add){
 		if(model->submodels.size() > 2){
 			reglib::RegistrationRandom *	reg	= new reglib::RegistrationRandom();
@@ -192,6 +192,23 @@ void modelCallback(const quasimodo_msgs::model & m){
 	for(unsigned int i = 0; i < model->frames.size(); i++){
 		printf("%i -> %s\n",i,model->frames[i]->keyval.c_str());
 	}
+
+//    for(unsigned int j = 0; j < model->frames.size(); j++){
+//        printf("frame path: %s\n",model->frames[j]->keyval.c_str());
+//        cv::Mat maskmat = model->modelmasks[j]->getMask();
+//        cv::Mat rgb	 = model->frames[j]->rgb.clone();
+//        std::vector<std::vector<cv::Point> > contours;
+//        std::vector<cv::Vec4i> hierarchy;
+//        cv::findContours( maskmat, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0) );
+//        for( unsigned int i = 0; i < contours.size(); i++ ){
+//            cv::drawContours( rgb, contours, i, cv::Scalar( 0, 0, 255 ), 2, 8, hierarchy, 0, cv::Point() );
+//            cv::drawContours( rgb, contours, i, cv::Scalar( 0, 255, 0 ), 1, 8, hierarchy, 0, cv::Point() );
+//        }
+//        cv::namedWindow( "rgb"	, cv::WINDOW_AUTOSIZE );
+//        cv::imshow( "rgb",	rgb);
+//        cv::waitKey(0);
+//    }
+
 	//addNewModel(model);
 	//storage->fullHandback();
 

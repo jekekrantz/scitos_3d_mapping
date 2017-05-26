@@ -86,15 +86,22 @@ void CameraOptimizer::redraw(){
     std::vector<double> z_ratios;
     z_ratios.resize(width*height);
 
+
+	z_max = 0;
+	z_min = 1000;
     for(unsigned long h = 0; h < height; h++){
         for(unsigned long w = 0; w < width; w++){
             unsigned int ind = h * width + w;
 
             z_ratios[ind] = getRange(double(w)/double(width), double(h)/double(height),z,h % 20 == 0 && w % 20 == 0)/z;
-            //                z_max = std::max(z_ratios[ind],z_max);
-            //                z_min = std::min(z_ratios[ind],z_min);
+			z_max = std::max(z_ratios[ind],z_max);
+			z_min = std::min(z_ratios[ind],z_min);
         }
     }
+
+	maxdiff = std::max(fabs(1-z_max),fabs(1-z_min));
+	z_max = 1.0+maxdiff;
+	z_min = 1.0-maxdiff;
 
     double z_range = std::max(0.000001,z_max - z_min);
 

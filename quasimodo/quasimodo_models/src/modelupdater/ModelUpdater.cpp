@@ -583,9 +583,9 @@ int setupPriors(int method,float current_occlusions, float current_overlaps, flo
     }
 
     if(method == 6 && valid){
-		float p_obj_given_occlusion = 0.9;
-		float p_obj_given_overlap   = 0.3;
-		float p_obj_given_unknown   = 0.4999;
+        float p_obj_given_occlusion = 0.90;
+        float p_obj_given_overlap   = 0.40;
+        float p_obj_given_unknown   = 0.49;
 
         float bg_p_O = bg_occlusions;
         float bg_p_nO_S = (1-bg_p_O)*bg_overlaps;
@@ -922,8 +922,6 @@ OcclusionScore ModelUpdater::computeOcclusionScore(Model * mod, vector<Matrix4d>
 
 OcclusionScore ModelUpdater::computeOcclusionScore(Model * model1, Model * model2, Matrix4d rp, int step, bool debugg){
 	OcclusionScore ocs;
-	//	ocs.add(computeOcclusionScore(model1, model2->rep_relativeposes,model2->rep_frames,model2->rep_modelmasks,rp.inverse(),step,debugg));
-	//	ocs.add(computeOcclusionScore(model2, model1->rep_relativeposes,model1->rep_frames,model1->rep_modelmasks,rp,step,debugg));
 	ocs.add(computeOcclusionScore(model1, model2->relativeposes,model2->frames,model2->modelmasks,rp.inverse(),step,debugg));
 	ocs.add(computeOcclusionScore(model2, model1->relativeposes,model1->frames,model1->modelmasks,rp,step,debugg));
 	return ocs;
@@ -3488,7 +3486,7 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
     dggdnfunc->nr_refineiters					= 4;
     DistanceWeightFunction2PPR3 * dfuncTMP		= new DistanceWeightFunction2PPR3(dggdnfunc,0.1,1000);
 	dfunc = dfuncTMP;
-	dfuncTMP->startreg				= 0.000;
+    dfuncTMP->startreg				= 0.000;
 	dfuncTMP->max_under_mean		= false;
     dfuncTMP->debugg_print			= false;
 	dfuncTMP->bidir					= true;
@@ -4013,7 +4011,7 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 	const unsigned int pixels_per_image	= width*height;
 	const unsigned int nr_pixels		= nr_frames*pixels_per_image;
 
-	double probthresh = 0.5;
+    double probthresh = 0.9;
 	double str_probthresh = -log(probthresh);
 	unsigned int number_of_dynamics = 0;
 	unsigned int nr_obj_dyn = 0;
@@ -4145,6 +4143,18 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 				sr.component_dynamic.push_back(todo);
 				sr.scores_dynamic.push_back(score1);
 				sr.total_dynamic.push_back(totsum);
+
+                //Visualize
+                if(debugg){
+                    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_sample (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+                    for(unsigned int i = 0; i < todo.size(); i++){
+                        cloud_sample->points.push_back(cloud->points[todo[i]]);
+                    }
+
+                    viewer->removeAllPointClouds();
+                    viewer->addPointCloud<pcl::PointXYZRGBNormal> (cloud_sample, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(cloud_sample), "cloud");
+                    viewer->spin();
+                }
 			}else{
 				labelID.back() = --nr_obj_mov;
 				if(debugg != 0){printf("Moving: %f -> %f\n",score0,totsum);}
@@ -4341,43 +4351,44 @@ void ModelUpdater::computeMovingDynamicStatic(std::vector<cv::Mat> & movemask, s
 		viewer->spin();
 
 
-		cloud_sample->points.clear();
-		for(unsigned int i = 0; i < current_point; i++){
-			if(rand() % 4 == 0 && labels[i] == 0){
-				cloud_sample->points.push_back(cloud->points[i]);
-				cloud_sample->points.back().r = 0;
-				cloud_sample->points.back().g = 0;
-				cloud_sample->points.back().b = 255;
-			}
-		}
+        for(unsigned int iteration = 0; iteration < 4; iteration++){
+            cloud_sample->points.clear();
+            for(unsigned int i = 0; i < current_point; i++){
+                if(rand() % 4 == 0 && labels[i] == 0){
+                    cloud_sample->points.push_back(cloud->points[i]);
+                    cloud_sample->points.back().r = 0;
+                    cloud_sample->points.back().g = 0;
+                    cloud_sample->points.back().b = 255;
+                }
+            }
 
-		for(unsigned int c = 0; c < sr.component_dynamic.size(); c++){
-            int randr = rand()%156;
-            int randg = rand()%256;
-            int randb = rand()%256;
-			for(unsigned int i = 0; i < sr.component_dynamic[c].size(); i++){
-				cloud_sample->points.push_back(cloud->points[sr.component_dynamic[c][i]]);
-                cloud_sample->points.back().r = randr;
-                cloud_sample->points.back().g = randg;
-                cloud_sample->points.back().b = randb;
-			}
-		}
+            for(unsigned int c = 0; c < sr.component_dynamic.size(); c++){
+                int randr = rand()%156;
+                int randg = rand()%256;
+                int randb = rand()%256;
+                for(unsigned int i = 0; i < sr.component_dynamic[c].size(); i++){
+                    cloud_sample->points.push_back(cloud->points[sr.component_dynamic[c][i]]);
+                    cloud_sample->points.back().r = randr;
+                    cloud_sample->points.back().g = randg;
+                    cloud_sample->points.back().b = randb;
+                }
+            }
 
-		for(unsigned int c = 0; c < sr.component_moving.size(); c++){
-			int randr = rand()%256;
-			int randg = rand()%256;
-			int randb = rand()%256;
-			for(unsigned int i = 0; i < sr.component_moving[c].size(); i++){
-				cloud_sample->points.push_back(cloud->points[sr.component_moving[c][i]]);
-				cloud_sample->points.back().r = 255;//randr;
-				cloud_sample->points.back().g = 0;//randg;
-				cloud_sample->points.back().b = 0;//randb;
-			}
-		}
-		viewer->removeAllPointClouds();
-		viewer->addPointCloud<pcl::PointXYZRGBNormal> (cloud_sample, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(cloud_sample), "cloud");
-		viewer->spin();
-
+            for(unsigned int c = 0; c < sr.component_moving.size(); c++){
+                int randr = rand()%256;
+                int randg = rand()%256;
+                int randb = rand()%256;
+                for(unsigned int i = 0; i < sr.component_moving[c].size(); i++){
+                    cloud_sample->points.push_back(cloud->points[sr.component_moving[c][i]]);
+                    cloud_sample->points.back().r = 255;//randr;
+                    cloud_sample->points.back().g = 0;//randg;
+                    cloud_sample->points.back().b = 0;//randb;
+                }
+            }
+            viewer->removeAllPointClouds();
+            viewer->addPointCloud<pcl::PointXYZRGBNormal> (cloud_sample, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal>(cloud_sample), "cloud");
+            viewer->spin();
+        }
 		cloud_sample->points.clear();
 		for(unsigned int i = 0; i < current_point; i++){
 			if(rand() % 1 == 0){
