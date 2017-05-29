@@ -64,7 +64,7 @@
 #include "quasimodo_msgs/retrieval_result.h"
 #include "quasimodo_msgs/recognize.h"
 #include "soma_msgs/SOMAObject.h"
-#include "soma_manager/SOMAInsertObjs.h"
+//#include "soma_manager/SOMAInsertObjs.h"
 
 #include "modelupdater/ModelUpdater.h"
 #include "core/RGBDFrame.h"
