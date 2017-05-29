@@ -57,12 +57,9 @@ int current_model_update	= 0;
 
 bool verifyKey(std::string key){
 	std::string verify = storage->filepath+"/"+key;
-	printf("Verify: %s\n",verify.c_str());
 	if(quasimodo_brain::fileExists(verify)){
-		printf("it exists!\n");
 		return false;
 	}else{
-		printf("it does not exist!\n");
 		return true;
 	}
 }
@@ -107,7 +104,6 @@ bool addIfPossible(reglib::Model * model, ModelStorageFile * current_modelstorag
 }
 
 bool addToDB(reglib::Model * model, ModelStorageFile * current_modelstorage, ModelDatabase * current_modeldatabase, bool add){
-    return false;
 	if(add){
 		if(model->submodels.size() > 2){
 			reglib::RegistrationRandom *	reg	= new reglib::RegistrationRandom();
@@ -127,8 +123,21 @@ bool addToDB(reglib::Model * model, ModelStorageFile * current_modelstorage, Mod
 		model->last_changed = ++current_model_update;
 	}
 
-	std::vector<reglib::Model * > res = current_modeldatabase->search(model,3);
+    std::vector<reglib::Model * > res = current_modeldatabase->search(model,10);
 
+    if(show_search){
+        viewer->removeAllPointClouds();
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cld = model->getPCLcloud(1,false);
+        viewer->addPointCloud<pcl::PointXYZRGB> (cld, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB>(cld), "cld");
+        for(unsigned int i = 0; i < res.size(); i++){
+            pcl::PointCloud<pcl::PointXYZRGB>::Ptr cld = res[i]->getPCLcloud(1,false);
+            for(unsigned int j = 0; j < cld->points.size(); j++){cld->points[j].x += 1+i;}
+            viewer->addPointCloud<pcl::PointXYZRGB> (cld, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB>(cld), "cld"+std::to_string(i));
+        }
+        viewer->spin();
+    }
+
+    //return false;
 	//if(show_search){showModels(res);}
 
     for(unsigned int i = 0; i < res.size(); i++){
@@ -140,6 +149,7 @@ bool addToDB(reglib::Model * model, ModelStorageFile * current_modelstorage, Mod
 }
 
 void addNewModel(reglib::Model * model, ModelStorageFile * current_modelstorage, ModelDatabase * current_modeldatabase){
+
 	reglib::RegistrationRandom *	reg	= new reglib::RegistrationRandom();
 	reg->visualizationLvl				= show_reg_lvl;
 	reglib::ModelUpdaterBasicFuse * mu	= new reglib::ModelUpdaterBasicFuse( model, reg);
@@ -158,17 +168,17 @@ void addNewModel(reglib::Model * model, ModelStorageFile * current_modelstorage,
 	newmodelHolder->submodels.push_back(model);
 	newmodelHolder->submodels_relativeposes.push_back(Eigen::Matrix4d::Identity());
 	newmodelHolder->last_changed = ++current_model_update;
+
 	if(show_modelbuild){
 		newmodelHolder->recomputeModelPoints(Eigen::Matrix4d::Identity(),viewer);
 	}else{
 		newmodelHolder->recomputeModelPoints();
     }
 
-    newmodelHolder->points.front().print();
     model->updated = true;
     newmodelHolder->updated = true;
 
-	current_modelstorage->print();
+    //current_modelstorage->print();
 	current_modeldatabase->add(newmodelHolder);
 
 	addToDB(newmodelHolder,current_modelstorage,current_modeldatabase,false);
@@ -177,52 +187,17 @@ void addNewModel(reglib::Model * model, ModelStorageFile * current_modelstorage,
 void somaCallback(const std_msgs::String & m){printf("somaCallback(%s)\n",m.data.c_str());}
 
 void add(reglib::Model * model, ModelStorageFile * current_modelstorage, ModelDatabase * current_modeldatabase){
-	addNewModel(model, current_modelstorage,current_modeldatabase);
-	current_modelstorage->fullHandback();
+    addNewModel(model, current_modelstorage,current_modeldatabase);
+    current_modelstorage->fullHandback();
 }
 
 void modelCallback(const quasimodo_msgs::model & m){
-	printf("----------%s----------\n",__PRETTY_FUNCTION__);
-    quasimodo_msgs::model mod = m;
-
+//	printf("----------%s----------\n",__PRETTY_FUNCTION__);
 	if(!verifyKey(m.keyval)){return;}
-	printf("SO I WILL ADD IT!\n");
-
+    quasimodo_msgs::model mod = m;
 	reglib::Model * model = quasimodo_brain::getModelFromMSG(mod,true);
-	for(unsigned int i = 0; i < model->frames.size(); i++){
-		printf("%i -> %s\n",i,model->frames[i]->keyval.c_str());
-	}
-
-//    for(unsigned int j = 0; j < model->frames.size(); j++){
-//        printf("frame path: %s\n",model->frames[j]->keyval.c_str());
-//        cv::Mat maskmat = model->modelmasks[j]->getMask();
-//        cv::Mat rgb	 = model->frames[j]->rgb.clone();
-//        std::vector<std::vector<cv::Point> > contours;
-//        std::vector<cv::Vec4i> hierarchy;
-//        cv::findContours( maskmat, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cv::Point(0, 0) );
-//        for( unsigned int i = 0; i < contours.size(); i++ ){
-//            cv::drawContours( rgb, contours, i, cv::Scalar( 0, 0, 255 ), 2, 8, hierarchy, 0, cv::Point() );
-//            cv::drawContours( rgb, contours, i, cv::Scalar( 0, 255, 0 ), 1, 8, hierarchy, 0, cv::Point() );
-//        }
-//        cv::namedWindow( "rgb"	, cv::WINDOW_AUTOSIZE );
-//        cv::imshow( "rgb",	rgb);
-//        cv::waitKey(0);
-//    }
-
-	//addNewModel(model);
-	//storage->fullHandback();
-
 	add(model,storage,modeldatabase);
-
-//			pcl::PointCloud<pcl::PointXYZRGB>::Ptr cld = storage->getSnapshot();//reglib::getPointCloudFromVector(model->points);
-//			viewer->setBackgroundColor(1.0,0.0,1.0);
-//			viewer->removeAllPointClouds();
-//			viewer->addPointCloud<pcl::PointXYZRGB> (cld, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB>(cld), "cld");
-//			viewer->spin();
-
 }
-
-
 
 void clearMem(){
 	for(auto iterator = cameras.begin();	iterator != cameras.end();	iterator++) {delete iterator->second;}
@@ -339,7 +314,7 @@ int main(int argc, char **argv){
 
 			if(atoi(argv[i]) == 1){
 				if(modeldatabase != 0){delete modeldatabase;}
-				modeldatabase	= new ModelDatabaseRGBHistogram(5);
+                modeldatabase	= new ModelDatabaseRGBHistogram(5);
 			}
 
 			if(atoi(argv[i]) == 2){
@@ -352,7 +327,7 @@ int main(int argc, char **argv){
 	}
 
 
-	if(visualization){
+    if(visualization || show_search){
 		viewer = boost::shared_ptr<pcl::visualization::PCLVisualizer>(new pcl::visualization::PCLVisualizer ("Modelserver Viewer"));
 		viewer->addCoordinateSystem(0.1);
         viewer->setBackgroundColor(1.0,1.0,1.0);

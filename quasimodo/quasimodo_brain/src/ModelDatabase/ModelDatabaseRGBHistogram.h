@@ -8,7 +8,7 @@ class ModelDatabaseRGBHistogram: public ModelDatabase{
 	public:
 
 	int res;
-	std::vector< std::vector< double > > descriptors;
+    std::vector< std::pair< std::string ,std::vector< double > > > descriptors;
 
 	
 	virtual bool add(reglib::Model * model);

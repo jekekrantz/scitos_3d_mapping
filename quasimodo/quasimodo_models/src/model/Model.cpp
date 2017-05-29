@@ -816,12 +816,26 @@ pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr Model::getPCLnormalcloud(int step, 
 
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr Model::getPCLcloud(int step, bool color){
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_ptr (new pcl::PointCloud<pcl::PointXYZRGB>);
+
+    double meanx = 0;
+    double meany = 0;
+    double meanz = 0;
+    for(unsigned int i = 0; i < points.size(); i++){
+        meanx += points[i].x;
+        meany += points[i].y;
+        meanz += points[i].z;
+    }
+
+    meanx/= double(points.size());
+    meany/= double(points.size());
+    meanz/= double(points.size());
+
     for(unsigned int i = 0; i < points.size(); i+=step){
         superpoint & sp = points[i];
         pcl::PointXYZRGB p;
-        p.x = sp.x;
-        p.y = sp.y;
-        p.z = sp.z;
+        p.x = sp.x-meanx;
+        p.y = sp.y-meany;
+        p.z = sp.z-meanz;
 
         if(color){
             p.b =   0;

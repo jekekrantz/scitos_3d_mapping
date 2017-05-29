@@ -64,7 +64,7 @@ std::string ModelStorageFile::getNextID(){
 bool ModelStorageFile::add(reglib::Model * model, std::string key){
 	double startTime =quasimodo_brain::getTime();
 	double score = model->getScore();
-	printf("%s -> %10.10f\n",__PRETTY_FUNCTION__,score);
+    //printf("%s -> %10.10f\n",__PRETTY_FUNCTION__,score);
     if(model->keyval.length() == 0){model->keyval = getNextID();}
     printf("ModelStorageFile::add(%s)\n",model->keyval.c_str());
     std::string modelpath = filepath+"/"+model->keyval;
@@ -84,7 +84,7 @@ bool ModelStorageFile::add(reglib::Model * model, std::string key){
     if(model->parrent == 0){
         activeModels[model->keyval] = model;
     }
-    print();
+    //print();
 }
 
 bool ModelStorageFile::update(reglib::Model * model){
@@ -120,7 +120,7 @@ reglib::Model * ModelStorageFile::fetch(std::string key){
 
 void ModelStorageFile::fullHandback(){
 	for (auto it=activeModels.begin(); it!=activeModels.end(); ++it){
-        printf("activeModels: %i\n",long(it->second));
+        //printf("activeModels: %i\n",long(it->second));
 		it->second->fullDelete();
 		delete it->second;
 	}
