@@ -375,7 +375,7 @@ OcclusionScore ModelUpdater2::computeOcclusionScore2(DistanceWeightFunction2 * d
 				double tnz	= m20*src_nx + m21*src_ny + m22*src_nz;
 
 				double residualZ = mysign(dst_z-tz)*fabs(tnx*(dst_x-tx) + tny*(dst_y-ty) + tnz*(dst_z-tz));//dst_z-tz;//mysign(dst_z-tz)*fabs(tnx*(dst_x-tx) + tny*(dst_y-ty) + tnz*(dst_z-tz));
-				double angle = tnx*dst_nx + tny*dst_ny + tnz*dst_nz;
+				double angle = tnx*dst_nx + tny*dst_ny + tnz*dst_nz;//dst_z-tz;//
 
 
 				double src_variance = 1.0/sp.point_information;
@@ -384,9 +384,10 @@ OcclusionScore ModelUpdater2::computeOcclusionScore2(DistanceWeightFunction2 * d
 				double total_stdiv = sqrt(total_variance);
 
 				double d = residualZ/total_stdiv;
+				double d2 = sqrt((tx-dst_x)*(tx-dst_x) + (ty-dst_y)*(ty-dst_y) + (tz-dst_x)*(tz-dst_z))/total_stdiv;
 
 				double p_overlap_angle = nfunc->getProb(1-angle);
-				double p_overlap = dfunc->getProb(d);
+				double p_overlap = std::min(dfunc->getProb(d),dfunc->getProb(0.1*d2));
 				double p_occlusion = dfunc->getProbInfront(d);
 
 				p_overlap *= p_overlap_angle;
@@ -396,6 +397,8 @@ OcclusionScore ModelUpdater2::computeOcclusionScore2(DistanceWeightFunction2 * d
 			}
 		}
 	}
+
+	sum_olp = std::max(sum_olp-0.05*nr_data,0.0);
 
 	return OcclusionScore(sum_olp,sum_ocl);
 }
@@ -538,6 +541,162 @@ vector<vector < OcclusionScore > > ModelUpdater2::computeOcclusionScore2(vector<
     delete nfunc;
     delete dfunc;
     return occlusionScores;
+}
+
+
+float ModelUpdater2::recursive_split2(std::vector<Graph*> * graphs_out,std::vector<std::vector<int>> * graphinds_out, Graph * graph, std::vector<int> graph_inds){
+	printf("%s::%i\n",__PRETTY_FUNCTION__,__LINE__);
+	if(boost::num_vertices(*graph) == 1){
+		graphs_out->push_back(graph);
+		graphinds_out->push_back(graph_inds);
+		return 0;
+	}
+
+	std::vector<Graph*> second_graphs;
+	std::vector<std::vector<int>> second_graphinds;
+	float w = graph_cut(second_graphs,second_graphinds,*graph,graph_inds);
+	printf("line %i -> %f\n",__LINE__,w);
+	if(w <= 0){
+		delete graph;
+		return 2*w + recursive_split2(graphs_out, graphinds_out,second_graphs.front(),second_graphinds.front()) + recursive_split2(graphs_out, graphinds_out, second_graphs.back(),second_graphinds.back());
+	}else{
+		graphs_out->push_back(graph);
+		graphinds_out->push_back(graph_inds);
+		delete second_graphs.front();
+		delete second_graphs.back();
+		return 0;
+	}
+}
+
+std::vector<int> ModelUpdater2::partition_graph2(std::vector< std::vector< float > > & scores){
+	printf("%s::%i\n",__PRETTY_FUNCTION__,__LINE__);
+	printf("size: %i\n",scores.size());
+
+	int nr_data = scores.size();
+	Graph* graph = new Graph(nr_data);
+	std::vector<int> graph_inds;
+	graph_inds.resize(nr_data);
+
+	typename boost::property_map<Graph, boost::vertex_name_t>::type vertex_name = boost::get(boost::vertex_name, *graph);
+
+	float sum = 0;
+	for(int i = 0; i < nr_data; i++){
+		graph_inds[i] = i;
+		for(int j = i+1; j < nr_data; j++){
+			float weight = scores[i][j];
+			if(weight != 0){
+				sum += 2*weight;
+				edge_weight_property e = weight;
+				boost::add_edge(i, j, e, *graph);
+			}
+		}
+	}
+
+	std::vector<Graph*> * graphs_out = new std::vector<Graph*>();
+	std::vector<std::vector<int>> * graphinds_out = new std::vector<std::vector<int>>();
+
+	printf("%s::%i\n",__PRETTY_FUNCTION__,__LINE__);
+	if(boost::num_vertices(*graph) == 1){
+		graphs_out->push_back(graph);
+		graphinds_out->push_back(graph_inds);
+		printf("exit at line %i\n",__LINE__);
+		exit(0);
+		//return 0;
+	}
+
+	std::vector<Graph*> second_graphs;
+	std::vector<std::vector<int>> second_graphinds;
+	float w = graph_cut(second_graphs,second_graphinds,*graph,graph_inds);
+	printf("line %i -> %f\n",__LINE__,w);
+
+
+	std::vector<int> part;
+	part.resize(nr_data);
+	for(unsigned int i = 0; i < graphinds_out->size(); i++){
+		for(unsigned int j = 0; j < graphinds_out->at(i).size(); j++){
+			part[graphinds_out->at(i).at(j)] = i;
+		}
+	}
+
+	printf("partition = [");
+	for(unsigned int i = 0; i < nr_data; i++){
+		printf("%i ");
+	}
+	printf("];\n");
+
+
+//	if(w <= 0){
+//		delete graph;
+//		return 2*w + recursive_split2(graphs_out, graphinds_out,second_graphs.front(),second_graphinds.front()) + recursive_split2(graphs_out, graphinds_out, second_graphs.back(),second_graphinds.back());
+//	}else{
+//		graphs_out->push_back(graph);
+//		graphinds_out->push_back(graph_inds);
+//		delete second_graphs.front();
+//		delete second_graphs.back();
+//		return 0;
+//	}
+
+//	float best = sum-recursive_split2(graphs_out,graphinds_out, graph,graph_inds );
+
+//	std::vector<int> part;
+//	part.resize(nr_data);
+//	for(unsigned int i = 0; i < graphinds_out->size(); i++){
+//		for(unsigned int j = 0; j < graphinds_out->at(i).size(); j++){
+//			part[graphinds_out->at(i).at(j)] = i;
+//		}
+//	}
+
+	return std::vector<int>();
+
+//	int nr_data = scores.size();
+//	Graph* graph = new Graph(nr_data);
+//	std::vector<int> graph_inds;
+//	graph_inds.resize(nr_data);
+
+//	typename boost::property_map<Graph, boost::vertex_name_t>::type vertex_name = boost::get(boost::vertex_name, *graph);
+
+//	float sum = 0;
+//	for(int i = 0; i < nr_data; i++){
+//		graph_inds[i] = i;
+//		for(int j = i+1; j < nr_data; j++){
+//			float weight = scores[i][j];
+//			if(weight != 0){
+//				sum += 2*weight;
+//				edge_weight_property e = weight;
+//				boost::add_edge(i, j, e, *graph);
+//			}
+//		}
+//	}
+
+//	std::vector<Graph*> * graphs_out = new std::vector<Graph*>();
+//	std::vector<std::vector<int>> * graphinds_out = new std::vector<std::vector<int>>();
+//	float best = sum-recursive_split2(graphs_out,graphinds_out, graph,graph_inds );
+
+//	std::vector<int> part;
+//	part.resize(nr_data);
+//	for(unsigned int i = 0; i < graphinds_out->size(); i++){
+//		for(unsigned int j = 0; j < graphinds_out->at(i).size(); j++){
+//			part[graphinds_out->at(i).at(j)] = i;
+//		}
+//	}
+//	return part;
+}
+
+std::vector<int> ModelUpdater2::getPartition2(std::vector< std::vector< float > > & scores){
+	printf("%s::%i\n",__PRETTY_FUNCTION__,__LINE__);
+	if(scores.size() < 20){
+		printf("getGroupings2 \n");
+		std::vector<int> part = getGroupings2(scores,scores.size());
+		printf("partition = [");
+		for(unsigned int i = 0; i < part.size(); i++){
+			printf("%i ",part[i]);
+		}
+		printf("];\n");
+
+		return part;
+	}else{
+		return partition_graph2(scores);
+	}
 }
 
 }

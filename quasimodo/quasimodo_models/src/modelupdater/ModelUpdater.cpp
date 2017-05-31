@@ -47,8 +47,9 @@ class ModelGrouping
         nr_clusters = 0;
     }
     void print(){
-        //printf("----------------\n");
-        printf("weight: %8.8f ",weight);
+		//printf("----------------\n");
+		printf("lowerbound: %8.8f ",lowerbound);
+		printf("weight: %8.8f ",weight);
         printf("relaxation: %8.8f ",relaxation);
         printf("added: %i ",added);
         printf("nr_clusters: %i ",nr_clusters);
@@ -89,14 +90,29 @@ class ModelGrouping
     friend bool operator== (const ModelGrouping &c1, const ModelGrouping &c2);
 };
 
-bool operator> ( const ModelGrouping &c1, const ModelGrouping &c2){return c1.lowerbound > c2.lowerbound;}
-bool operator>= (const ModelGrouping &c1, const ModelGrouping &c2){return c1.lowerbound >= c2.lowerbound;}
-bool operator<  (const ModelGrouping &c1, const ModelGrouping &c2){return c1.lowerbound < c2.lowerbound;}
-bool operator<= (const ModelGrouping &c1, const ModelGrouping &c2){return c1.lowerbound <= c2.lowerbound;}
-bool operator== (const ModelGrouping &c1, const ModelGrouping &c2){return c1.lowerbound == c2.lowerbound;}
+bool operator> ( const ModelGrouping &c1, const ModelGrouping &c2){
+	if(c1.lowerbound == c2.lowerbound){return c1.nr_clusters > c2.nr_clusters;}
+	return c1.lowerbound > c2.lowerbound;
+}
+bool operator>= (const ModelGrouping &c1, const ModelGrouping &c2){
+	if(c1.lowerbound == c2.lowerbound){return c1.nr_clusters >= c2.nr_clusters;}
+	return c1.lowerbound >= c2.lowerbound;
+}
+bool operator<  (const ModelGrouping &c1, const ModelGrouping &c2){
+	if(c1.lowerbound == c2.lowerbound){return c1.nr_clusters < c2.nr_clusters;}
+	return c1.lowerbound < c2.lowerbound;
+}
+bool operator<= (const ModelGrouping &c1, const ModelGrouping &c2){
+	if(c1.lowerbound == c2.lowerbound){return c1.nr_clusters <= c2.nr_clusters;}
+	return c1.lowerbound <= c2.lowerbound;
+}
+bool operator== (const ModelGrouping &c1, const ModelGrouping &c2){
+	if(c1.lowerbound == c2.lowerbound){return c1.nr_clusters == c2.nr_clusters;}
+	return c1.lowerbound == c2.lowerbound;
+}
 
 
-std::vector<int> getGroupings2(std::vector< std::vector<float> > edges_mat, int nrp, double limit = 0, int relaxation = 1, bool verbose = false){
+std::vector<int> ModelUpdater::getGroupings2(std::vector< std::vector<float> > edges_mat, int nrp, double limit, int relaxation, bool verbose){
 
     std::vector< double > edges;
     edges.resize(nrp*nrp);
@@ -147,14 +163,17 @@ std::vector<int> getGroupings2(std::vector< std::vector<float> > edges_mat, int 
     int groupings_done = 0;
     double first = -1;
     double sum = 0;
+	double start = getTime();
     while (!queue.empty()){
         ModelGrouping g = queue.top();
+		g.print();
         if(g.getWeight() < limit*first){break;}
 
         queue.pop();
         if(verbose && groupings_done % 1000 == 0){g.print();}
         //printf("current: %20.20f\n",g.getWeight());
 
+		printf("g.added: %i nrp: %i\n",g.added,nrp);
         if(g.added < nrp){
             for(int cluster_id = 0; cluster_id < g.nr_clusters+1; cluster_id++){
                 ModelGrouping g2 = g;
@@ -164,8 +183,11 @@ std::vector<int> getGroupings2(std::vector< std::vector<float> > edges_mat, int 
                 groupings_done++;
             }
         }else{
+			printf("solution found in %fs\n",getTime()-start);
             return g.clusters;
         }
+
+		//if(getTime() - start > 2){}
     }
 
     std::vector<int> clusters;

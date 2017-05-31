@@ -31,6 +31,9 @@ namespace reglib
 		virtual OcclusionScore computeOcclusionScore2(DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * nfunc, Model * mod, vector<Matrix4d> cp, vector<RGBDFrame*> cf, vector<ModelMask*> cm, Matrix4d rp = Matrix4d::Identity(), int step = 1, bool debugg = false);
 		virtual OcclusionScore computeOcclusionScore2(DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * nfunc, Model * model1, Model * model2, Matrix4d rp = Matrix4d::Identity(),int step = 1, bool debugg = false);
 		virtual vector<vector < OcclusionScore > > computeOcclusionScore2(vector<Model *> models, vector<Matrix4d> rps, int step = 1, bool debugg = false);
+		virtual std::vector<int> getPartition2(std::vector< std::vector< float > > & scores);
+		virtual std::vector<int> partition_graph2(std::vector< std::vector< float > > & scores);
+		virtual float recursive_split2(std::vector<Graph*> * graphs_out, std::vector<std::vector<int>> * graphinds_out, Graph * graph, std::vector<int> graph_inds);
 
 	};
 

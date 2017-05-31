@@ -292,6 +292,15 @@ Model * mergeSubmodels(DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 
 
 	print(scores);
 
+	std::vector<int> partition					= mu->getPartition2(scores);
+	exit(0);
+//	printf("partition = [");
+//	for(int i = 0; i < partition.size(); i++){
+//		printf("%i ",partition[i]);
+//	}
+//	printf("];\n");
+//exit(0);
+
 //	viewer->removeAllPointClouds();
 //	viewer->removeAllShapes();
 //	double startx = 0;
@@ -512,6 +521,83 @@ Model * mergeSubmodels(DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 
 	*/
 }
 
+void drawGraph(DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * nfunc, Model * model, boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer = 0){
+	printf("drawGraph\n");
+	reglib::RegistrationRandom2 *	reg			= new reglib::RegistrationRandom2(5);
+	reglib::ModelUpdater2 * mu					= new reglib::ModelUpdater2();
+	mu->occlusion_penalty						= 15;
+	mu->viewer									= viewer;
+	mu->show_scoring							= false;//fuse scoring show
+
+	vector<Model *> models						= model->submodels;
+	vector<Matrix4d> rps						= model->submodels_relativeposes;
+
+	vector<vector < OcclusionScore > > ocs		= mu->computeOcclusionScore2(models,rps,1,false);
+	std::vector<std::vector < float > > scores	= mu->getScores(ocs);
+
+	print(scores);
+
+	std::vector<int> partition					= mu->getPartition(scores);
+
+	float maxval = scores[0][0];
+	unsigned int max_i = 0;
+	unsigned int max_j = 0;
+	for(unsigned int i = 0; i < scores.size(); i++){
+		for(unsigned int j = i+1; j < scores.size(); j++){
+			if(maxval < scores[i][j]){
+				maxval = fabs(scores[i][j]);
+			}
+		}
+	}
+
+
+			viewer->removeAllPointClouds();
+			viewer->removeAllShapes();
+	std::vector<pcl::PointXYZ> mids;
+
+	for(unsigned int i = 0; i < model->submodels.size(); i++){
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr cld	= model->submodels[i]->getPCLcloud(1,false);
+
+		for(unsigned int j = 0; j < cld->points.size(); j++){
+			cld->points[j].x += model->submodels.size()*0.5;
+		}
+
+		Eigen::Affine3f transform_2 = Eigen::Affine3f::Identity();
+		transform_2.rotate (Eigen::AngleAxisf (2.0*3.14*double(i)/double(model->submodels.size()), Eigen::Vector3f::UnitZ()));
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
+		pcl::transformPointCloud (*cld, *transformed_cloud, transform_2);
+
+		viewer->addPointCloud<pcl::PointXYZRGB> (transformed_cloud, pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB>(transformed_cloud), "submodel_"+std::to_string(i));
+
+
+		pcl::PointCloud<pcl::PointXYZ> mid;
+		pcl::PointXYZ p;
+		p.x = model->submodels.size()*0.5;
+		p.y = 0;
+		p.z = 0;
+
+		mid.points.push_back(p);
+		pcl::PointCloud<pcl::PointXYZ> mid2;
+		pcl::transformPointCloud (mid, mid2, transform_2);
+		mids.push_back(mid2.points.front());
+		for(unsigned int j = 0; j < i; j++){
+			printf("score: %f\n",scores[i][j]);
+			viewer->addLine<pcl::PointXYZ> (mids[j],mid2.points.front(),1,0,0,"line_"+std::to_string(i)+"_"+std::to_string(j));
+			viewer->spin();
+			viewer->removeAllShapes();
+		}
+
+
+//		for(unsigned int i = 0; i < mids.size(); i++){
+//			viewer->addLine<pcl::PointXYZ> (mids[i],p,1,0,0,"line_"+acc+"_"+std::to_string(i));
+
+	}
+
+
+
+	viewer->spin();
+}
+
 
 int main(int argc, char **argv){
 
@@ -569,6 +655,7 @@ int main(int argc, char **argv){
 		pq.pop();
 		reglib::Model * model = storage->fetch(pair.second);
 
+
 		printf("keyval:%s\n",model->submodels.front()->keyval.c_str());
 		int subs = model->submodels.size();
 		segments += subs;
@@ -589,6 +676,9 @@ int main(int argc, char **argv){
 				model->submodels[i]->rep_relativeposes.push_back(model->submodels[i]->relativeposes[rv[j]]);
 			}
 		}
+
+		//drawGraph( dfunc,nfunc,model,viewer);
+
 
 //		viewer->removeAllPointClouds();
 //		viewer->removeAllShapes();
@@ -637,17 +727,20 @@ int main(int argc, char **argv){
 		delete mu;
 		delete reg;
 */
-		mergeSubmodels(dfunc,nfunc,model,5,viewer);
+		mergeSubmodels(dfunc,nfunc,model,2,viewer);
 
 //		viewer->removeAllPointClouds();
 //		viewer->removeAllShapes();
 
 		addToViewer2(stopx,stopx,0,viewer,model,model->keyval);
-
 		viewer->spin();
+		exit(0);
+		stopx += 2;
+
 		storage->fullHandback();
 	}
 
+	viewer->spin();
 	printf("dist = [");
 	for(unsigned int i = 1; i < dist.size(); i++){printf("%i ",dist[i]);}
 	printf("];\n");

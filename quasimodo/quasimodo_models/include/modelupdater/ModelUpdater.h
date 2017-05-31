@@ -153,6 +153,7 @@ public:
 	std::vector<std::vector < OcclusionScore > > getOcclusionScores(std::vector<Eigen::Matrix4d> current_poses, std::vector<RGBDFrame*> current_frames, std::vector<ModelMask*> current_modelmasks,  bool debugg_scores = false, double speedup = 1.0);
 	std::vector<std::vector < float > > getScores(std::vector<std::vector < OcclusionScore > > occlusionScores);
 	std::vector<int> getPartition(std::vector< std::vector< float > > & scores, int dims = 2, int nr_todo = 5, double timelimit = 2);
+	std::vector<int> getGroupings2(std::vector< std::vector<float> > edges_mat, int nrp, double limit = 0, int relaxation = 1, bool verbose = false);
 
 	virtual void recomputeScores();
 };
