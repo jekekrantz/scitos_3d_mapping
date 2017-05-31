@@ -8,6 +8,7 @@ from sensor_msgs.msg import PointCloud2, PointField
 #from world_modeling.srv import *
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
+import numpy as np
 
 # SOMA2 stuff
 from soma_msgs.msg import SOMAObject
@@ -41,12 +42,25 @@ def kill_surfelize_it():
 
 def insert_model_cb(sreq):
     msg_store = MessageStoreProxy(database='world_state', collection='quasimodo')
+   
 
-    local_poses = sreq.model.local_poses
+    max_views = 12
+    if len(sreq.model.clouds) > max_views:
+        inds = list(np.random.choice(len(sreq.model.clouds)-1, max_views-1, replace=False))
+        inds = [0] + [i + 1 for i in inds]
+        object_clouds = [sreq.model.clouds[i] for i in inds]
+        object_masks = [sreq.model.masks[i] for i in inds]
+        object_poses = [sreq.model.local_poses[i] for i in inds]
+        object_frames = [sreq.model.frames[i] for i in inds]
+    else:
+        object_clouds = list(sreq.model.clouds)
+        object_masks = list(sreq.model.masks)
+        object_poses = list(sreq.model.local_poses)
+        object_frames = list(sreq.model.frames)
 
     transforms = []
     req = mask_pointcloudsRequest()
-    for cloud, mask, pose in zip(sreq.model.clouds, sreq.model.masks, sreq.model.local_poses):
+    for cloud, mask, pose in zip(object_clouds, object_masks, object_poses):
         req.clouds.append(cloud)
         req.masks.append(mask)
 
@@ -59,6 +73,8 @@ def insert_model_cb(sreq):
         transform.translation.y = pose.position.y
         transform.translation.z = pose.position.z
         transforms.append(transform)
+
+
 
     print "Waiting for retrieval_segmentation_service..."
     rospy.wait_for_service('retrieval_segmentation_service')
@@ -91,13 +107,13 @@ def insert_model_cb(sreq):
     new_obj.object_id = "null"
     now = datetime.now()
     new_obj.inserted_at = now.strftime("%Y-%m-%d %H:%M:%S")
-    new_obj.transforms = local_poses
+    new_obj.transforms = object_poses
     new_obj.nbr_observations = sreq.model.nbr_observations
 
     new_obj_depths = image_array()
     new_obj_images = image_array()
     new_obj_masks = image_array()
-    for rgbd_frame, mask in zip(sreq.model.frames, sreq.model.masks):
+    for rgbd_frame, mask in zip(object_frames, object_masks):
         new_obj_depths.images.append(rgbd_frame.depth)
         new_obj_images.images.append(rgbd_frame.rgb)
         new_obj_masks.images.append(mask)
