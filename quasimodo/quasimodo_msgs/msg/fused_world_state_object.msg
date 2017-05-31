@@ -10,3 +10,4 @@ geometry_msgs/Pose[] transforms
 string inserted_at
 string removed_at
 string associated_mongodb_fields_map
+uint64 nbr_observations

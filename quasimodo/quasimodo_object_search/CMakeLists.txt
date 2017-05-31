@@ -6,7 +6,7 @@ add_definitions(-std=c++11)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS quasimodo_msgs pcl_ros mongodb_store object_3d_benchmark dynamic_object_retrieval cereal eigen_conversions)
+find_package(catkin REQUIRED COMPONENTS quasimodo_msgs pcl_ros mongodb_store object_3d_benchmark dynamic_object_retrieval cereal eigen_conversions cv_bridge)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)

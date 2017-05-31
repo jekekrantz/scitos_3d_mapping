@@ -92,6 +92,7 @@ def insert_model_cb(sreq):
     now = datetime.now()
     new_obj.inserted_at = now.strftime("%Y-%m-%d %H:%M:%S")
     new_obj.transforms = local_poses
+    new_obj.nbr_observations = sreq.model.nbr_observations
 
     new_obj_depths = image_array()
     new_obj_images = image_array()
@@ -102,9 +103,15 @@ def insert_model_cb(sreq):
         new_obj_masks.images.append(mask)
 
     new_obj_associated_mongodb_fields = {}
-    new_obj_associated_mongodb_fields["depths"] = msg_store.insert(new_obj_depths)
-    new_obj_associated_mongodb_fields["images"] = msg_store.insert(new_obj_images)
-    new_obj_associated_mongodb_fields["masks"] = msg_store.insert(new_obj_masks)
+    try:
+        image_id = msg_store.insert(new_obj_images)
+        depth_id = msg_store.insert(new_obj_depths)
+        mask_id = msg_store.insert(new_obj_masks)
+        new_obj_associated_mongodb_fields["images"] = image_id 
+        new_obj_associated_mongodb_fields["depths"] = depth_id
+        new_obj_associated_mongodb_fields["masks"] = mask_id
+    except rospy.ServiceException, e:
+        print "Service call failed: %s, but it doesn't matter"%e
 
     new_obj.associated_mongodb_fields_map = json.dumps(new_obj_associated_mongodb_fields, ensure_ascii=True)
 

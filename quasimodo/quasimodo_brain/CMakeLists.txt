@@ -208,6 +208,10 @@ add_executable(			sweep_pixel_correct src/sweep_pixel_correct.cpp)
 add_dependencies(		sweep_pixel_correct roscpp quasimodo_msgs_generate_messages_cpp)
 target_link_libraries(	sweep_pixel_correct quasimodo_CameraOptimizer quasimodo_DescriptorExtractor quasimodo_distribution quasimodo_KeyPoint quasimodo_descriptor quasimodo_superpoint quasimodo_brain_util quasimodo_ModelDatabase  image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
 
+add_executable(			testFuse src/testFuse.cpp)
+add_dependencies(		testFuse roscpp quasimodo_msgs_generate_messages_cpp)
+target_link_libraries(	testFuse quasimodo_ReprojectionResult quasimodo_OcclusionScore quasimodo_ModelUpdater quasimodo_distribution quasimodo_weightlib quasimodo_superpoint quasimodo_brain_util quasimodo_ModelDatabase image_geometry cpp_common roscpp rosconsole tf_conversions metaroom_xml_parser ${QT_QTMAIN_LIBRARY} ${QT_LIBRARIES} ${catkin_LIBRARIES})
+
 
 #############
 ## Install ##

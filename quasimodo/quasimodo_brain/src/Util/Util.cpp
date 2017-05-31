@@ -1550,6 +1550,8 @@ void addToModelMSG(quasimodo_msgs::model & msg, reglib::Model * model, Eigen::Af
 	for(unsigned int i = 0; i < model->submodels_relativeposes.size(); i++){
 		addToModelMSG(msg,model->submodels[i],Eigen::Affine3d(rp*model->submodels_relativeposes[i]),addClouds);
 	}
+
+    msg.nbr_observations = model->submodels.size();
 }
 
 quasimodo_msgs::model getModelMSG(reglib::Model * model, bool addClouds){

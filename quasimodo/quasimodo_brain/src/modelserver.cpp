@@ -1,6 +1,7 @@
 #include "ModelDatabase/ModelDatabase.h"
 #include "ModelStorage/ModelStorage.h"
 #include "Util/Util.h"
+#include <quasimodo_conversions/soma_insert_model.h>
 
 bool addToDB(		reglib::Model * model, ModelStorageFile * current_modelstorage, ModelDatabase * current_modeldatabase, bool add);
 bool addIfPossible(	reglib::Model * model, ModelStorageFile * current_modelstorage, ModelDatabase * current_modeldatabase, reglib::Model * model2);
@@ -19,6 +20,7 @@ int show_reg_lvl = 0;//registration show
 bool show_scoring = false;//fuse scoring show
 bool show_search = false;
 bool show_modelbuild = false;
+bool addSomaOnline;
 
 std::map<int , reglib::Camera *>		cameras;
 std::map<int , reglib::RGBDFrame *>		frames;
@@ -188,14 +190,33 @@ void somaCallback(const std_msgs::String & m){printf("somaCallback(%s)\n",m.data
 
 void add(reglib::Model * model, ModelStorageFile * current_modelstorage, ModelDatabase * current_modeldatabase){
     addNewModel(model, current_modelstorage,current_modeldatabase);
+
+	if (addSomaOnline) {
+		ros::ServiceClient insert_client = nh->serviceClient<quasimodo_conversions::soma_insert_model>("/quasimodo_conversions/insert_soma_model");
+		quasimodo_conversions::soma_insert_model im;
+
+		if (model->parrent != NULL) {
+			im.request.model = quasimodo_brain::getModelMSG(model->parrent,true);
+		} else {
+			im.request.model = quasimodo_brain::getModelMSG(model,true);
+		}
+
+		printf("Inserting into soma_llsd database\n");
+		if (insert_client.call(im)) {
+			printf("successfully inserted soma_llsd model\n");
+		}else {
+			ROS_ERROR("/quasimodo_conversions/insert_soma_model service INSERT FAIL!");
+		}
+	}
+
     current_modelstorage->fullHandback();
 }
 
 void modelCallback(const quasimodo_msgs::model & m){
-//	printf("----------%s----------\n",__PRETTY_FUNCTION__);
 	if(!verifyKey(m.keyval)){return;}
     quasimodo_msgs::model mod = m;
 	reglib::Model * model = quasimodo_brain::getModelFromMSG(mod,true);
+
 	add(model,storage,modeldatabase);
 }
 
@@ -251,6 +272,8 @@ int main(int argc, char **argv){
 
 	bool clearQDB = false;
 	bool reloadMongo = false;
+    bool addSoma = false;
+    addSomaOnline = false;
 
 	int inputstate = -1;
 	for(int i = 1; i < argc;i++){
@@ -281,6 +304,8 @@ int main(int argc, char **argv){
 		else if(std::string(argv[i]).compare("-loadModelsPCDs") == 0){								inputstate = 13;}
 		else if(std::string(argv[i]).compare("-clearQDB") == 0){									clearQDB = true;}
 		else if(std::string(argv[i]).compare("-reloadMongo") == 0){									reloadMongo = true;}
+        else if(std::string(argv[i]).compare("-addSoma") == 0){									    addSoma = true;}
+        else if(std::string(argv[i]).compare("-addSomaOnline") == 0){						        addSomaOnline = true;}
 		else if(inputstate == 1){
             reglib::Camera * cam = reglib::Camera::load(std::string(argv[i]));
 			delete cameras[0];
@@ -357,6 +382,22 @@ int main(int argc, char **argv){
 			}
 		}else{
 			ROS_ERROR("insert_client service CLEAR FAIL!");
+		}
+	}
+
+	if (addSoma) {
+		ros::ServiceClient insert_client = n.serviceClient<quasimodo_conversions::soma_insert_model>("/quasimodo_conversions/insert_soma_model");
+		quasimodo_conversions::soma_insert_model im;
+		for (std::map<std::string,std::string>::iterator it=storage->keyPathMap.begin(); it!=storage->keyPathMap.end(); ++it){
+			reglib::Model * model = storage->fetch(it->first);
+			im.request.model = quasimodo_brain::getModelMSG(model,true);
+			printf("starting to insert into soma_llsd database\n");
+			if (insert_client.call(im)){
+				printf("successfully inserted soma_llsd model\n");
+			}else{
+				ROS_ERROR("/quasimodo_conversions/insert_soma_model service INSERT FAIL!");
+			}
+			storage->fullHandback();
 		}
 	}
 

@@ -5,6 +5,7 @@
     <arg name="add_previous_maps" default="false"/>
     <arg name="start_add_map_ind" default="-1"/>
     <arg name="min_match_depth" default="1"/>
+    <arg name="disable_processing" default="false"/>
 
     <include file="$(find quasimodo_retrieval)/launch/retrieval.launch">
         <arg name="search_directly" value="false"/>
@@ -17,6 +18,7 @@
         <arg name="data_path" value="$(arg data_path)"/>
         <arg name="add_previous_maps" value="$(arg add_previous_maps)"/>
         <arg name="start_add_map_ind" value="$(arg start_add_map_ind)"/>
+        <arg name="disable_processing" value="$(arg disable_processing)"/>
     </include>
 
     <node pkg="quasimodo_object_search" type="insert_object_server.py" name="insert_object_server" output="screen" respawn="true"/>

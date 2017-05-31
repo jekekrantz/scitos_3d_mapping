@@ -38,7 +38,8 @@ cv::Mat make_visualization_image(CloudT::Ptr& query_cloud, cv::Mat& query_mask, 
                                  std::vector<boost::filesystem::path>& sweep_paths, const std::vector<std::string>& optional_text,
                                  const Eigen::Matrix4f& T);
 std::pair<cv::Mat, std::vector<cv::Mat> > make_image(std::vector<SurfelCloudT::Ptr>& results,
-                                                     const std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> >& first_transforms);
+                                                     const std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> >& first_transforms,
+                                                     const std::vector<std::string>& optional_text);
 
 } // namespace benchmark_retrieval
 

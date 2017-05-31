@@ -27,10 +27,10 @@ namespace reglib
 		//virtual void refine();
 		virtual	void computeMassRegistration(std::vector<Eigen::Matrix4d> current_poses, std::vector<RGBDFrame*> current_frames,std::vector<cv::Mat> current_masks);
 
-        virtual OcclusionScore computeOcclusionScore(DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * nfunc, vector<superpoint> & spvec, Matrix4d cp, RGBDFrame* cf, ModelMask* cm, int step = 1,  bool debugg = false);
-        virtual OcclusionScore computeOcclusionScore(DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * nfunc, Model * mod, vector<Matrix4d> cp, vector<RGBDFrame*> cf, vector<ModelMask*> cm, Matrix4d rp = Matrix4d::Identity(), int step = 1, bool debugg = false);
-        virtual OcclusionScore computeOcclusionScore(DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * nfunc, Model * model1, Model * model2, Matrix4d rp = Matrix4d::Identity(),int step = 1, bool debugg = false);
-        virtual vector<vector < OcclusionScore > > computeOcclusionScore(vector<Model *> models, vector<Matrix4d> rps, int step = 1, bool debugg = false);
+		virtual OcclusionScore computeOcclusionScore2(DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * nfunc, vector<superpoint> & spvec, Matrix4d cp, RGBDFrame* cf, ModelMask* cm, int step = 1,  bool debugg = false);
+		virtual OcclusionScore computeOcclusionScore2(DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * nfunc, Model * mod, vector<Matrix4d> cp, vector<RGBDFrame*> cf, vector<ModelMask*> cm, Matrix4d rp = Matrix4d::Identity(), int step = 1, bool debugg = false);
+		virtual OcclusionScore computeOcclusionScore2(DistanceWeightFunction2 * dfunc, DistanceWeightFunction2 * nfunc, Model * model1, Model * model2, Matrix4d rp = Matrix4d::Identity(),int step = 1, bool debugg = false);
+		virtual vector<vector < OcclusionScore > > computeOcclusionScore2(vector<Model *> models, vector<Matrix4d> rps, int step = 1, bool debugg = false);
 
 	};
 

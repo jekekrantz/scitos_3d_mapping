@@ -6,8 +6,9 @@
     <arg name="bypass_features" default="false"/>
     <arg name="bypass_vocabulary" default="false"/>
     <arg name="bypass_surfelize" default="false"/>
+    <arg name="disable_processing" default="false"/>
 
-    <node pkg="surfelize_it" type="run_map_processor.py" name="run_map_processor" output="screen" respawn="true"/>
+    <node pkg="surfelize_it" type="run_map_processor.py" name="run_map_processor" output="screen" respawn="true" unless="$(arg disable_processing)"/>
     <node pkg="retrieval_processing" type="retrieval_segmentation" name="retrieval_segmentation" output="screen" respawn="true">
         <param name="threshold" value="0.3"/>
         <param name="data_path" value="$(arg data_path)"/>

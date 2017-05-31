@@ -366,7 +366,8 @@ pair<int, int> get_square_sizes_local(int i)
 }
 
 pair<cv::Mat, vector<cv::Mat> > make_image(vector<SurfelCloudT::Ptr>& results,
-                                           const vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> >& first_transforms)
+                                           const vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> >& first_transforms,
+                                           const vector<string>& optional_text)
 {
     pair<int, int> sizes = get_square_sizes_local(results.size());
 
@@ -434,6 +435,10 @@ pair<cv::Mat, vector<cv::Mat> > make_image(vector<SurfelCloudT::Ptr>& results,
         K << focal, 0.0f, offset_x, 0.0f, focal, offset_y, 0.0f, 0.0f, 1.0f;
 
         cv::Mat sub_image = render_surfel_image(cloud, T*first_transforms[counter], K, height, width);
+
+        if (!optional_text.empty()) {
+            put_text(sub_image, optional_text[counter]);
+        }
 
         int offset_height = counter / sizes.second;
         int offset_width = counter % sizes.second;

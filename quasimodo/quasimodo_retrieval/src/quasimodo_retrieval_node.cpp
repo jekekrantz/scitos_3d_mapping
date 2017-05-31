@@ -199,6 +199,7 @@ public:
         if (summary.last_updated == temp_summary.last_updated || is_running) {
             return false;
         }
+		ROS_ERROR("EXIT RETRIEVAL NODE TO AVOID MEMLEAKS!");
 exit(0);
         cout << "Re-loading new vocabulary with timestamp: " << temp_summary.last_updated << endl;
         ros::Duration(3.0).sleep(); // sleep for a little bit to make sure the vocabulary is saved
