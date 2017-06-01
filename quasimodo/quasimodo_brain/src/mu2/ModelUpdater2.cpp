@@ -687,6 +687,7 @@ std::vector<int> ModelUpdater2::getPartition2(std::vector< std::vector< float > 
 	if(scores.size() < 20){
 		printf("getGroupings2 \n");
 		std::vector<int> part = getGroupings2(scores,scores.size());
+		if(part.size < scores.size()){}
 		printf("partition = [");
 		for(unsigned int i = 0; i < part.size(); i++){
 			printf("%i ",part[i]);
